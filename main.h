@@ -1,11 +1,14 @@
 #ifndef MAIN
 #define MAIN
 
+#define DEBUG
+
 #include <float.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "customAssert.h"
 #include "slog.h"
 
 
@@ -25,7 +28,7 @@
 #define av_popcount __builtin_popcount
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
-/*
+
 
 enum lookup_mode {
     MODE_OFF,
@@ -107,6 +110,6 @@ typedef struct SignatureContext {
     uint8_t l1distlut[243*242/2]; // 243 + 242 + 241 ...
     StreamContext* streamcontexts;
 } SignatureContext;
-*/
+
 
 #endif

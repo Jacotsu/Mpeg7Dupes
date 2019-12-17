@@ -504,14 +504,98 @@ void match(SignatureContext *sic) {
 }
 
 */
+/*
+static int
+binary_import(const char* filename)
+{
+    FILE* f;
+    FineSignature* fs;
+    CoarseSignature* cs;
+    uint32_t numofsegments = (sc->lastindex + 44)/45;
+    int i, j;
+    PutBitContext buf;
+    // buffer + header + coarsesignatures + finesignature
+    int len = (512 + 6 * 32 + 3*16 + 2 +
+        numofsegments * (4*32 + 1 + 5*243) +
+        sc->lastindex * (2 + 32 + 6*8 + 608)) / 8;
 
+    uint8_t* buffer = (uint8_t*) calloc(len, sizeof(uint8_t));
+
+    assert(buffer);
+    if (!buffer)
+        return AVERROR(ENOMEM);
+
+    f = fopen(filename, "wb");
+    if (!f) {
+        int err = AVERROR(EINVAL);
+        char buf[128];
+        av_strerror(err, buf, sizeof(buf));
+        av_log(ctx, AV_LOG_ERROR, "cannot open file %s: %s\n", filename, buf);
+        av_freep(&buffer);
+        return err;
+    }
+    init_put_bits(&buf, buffer, len);
+
+    put_bits32(&buf, 1); // NumOfSpatial Regions, only 1 supported
+    put_bits(&buf, 1, 1); // SpatialLocationFlag, always the whole image
+    put_bits32(&buf, 0); // PixelX,1 PixelY,1, 0,0
+    put_bits(&buf, 16, sc->w-1 & 0xFFFF); // PixelX,2
+    put_bits(&buf, 16, sc->h-1 & 0xFFFF); // PixelY,2
+    put_bits32(&buf, 0); // StartFrameOfSpatialRegion
+    put_bits32(&buf, sc->lastindex); // NumOfFrames
+    // hoping num is 1, other values are vague
+    // den/num might be greater than 16 bit, so cutting it
+    put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
+    put_bits(&buf, 1, 1); // MediaTimeFlagOfSpatialRegion
+    put_bits32(&buf, 0); // StartMediaTimeOfSpatialRegion
+    put_bits32(&buf, 0xFFFFFFFF & sc->coarseend->last->pts); // EndMediaTimeOfSpatialRegion
+    put_bits32(&buf, numofsegments); // NumOfSegments
+    // coarsesignatures 
+    for (cs = sc->coarsesiglist; cs; cs = cs->next) {
+        put_bits32(&buf, cs->first->index); // StartFrameOfSegment
+        put_bits32(&buf, cs->last->index); // EndFrameOfSegment
+        put_bits(&buf, 1, 1); // MediaTimeFlagOfSegment
+        put_bits32(&buf, 0xFFFFFFFF & cs->first->pts); // StartMediaTimeOfSegment
+        put_bits32(&buf, 0xFFFFFFFF & cs->last->pts); // EndMediaTimeOfSegment
+        for (i = 0; i < 5; i++) {
+            // put 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
+            for (j = 0; j < 30; j++) {
+                put_bits(&buf, 8, cs->data[i][j]);
+            }
+            put_bits(&buf, 3, cs->data[i][30] >> 5);
+        }
+    }
+    // finesignatures
+    put_bits(&buf, 1, 0); // CompressionFlag, only 0 supported
+    for (fs = sc->finesiglist; fs; fs = fs->next) {
+        put_bits(&buf, 1, 1); // MediaTimeFlagOfFrame
+        put_bits32(&buf, 0xFFFFFFFF & fs->pts); // MediaTimeOfFrame
+        put_bits(&buf, 8, fs->confidence); // FrameConfidence
+        for (i = 0; i < 5; i++) {
+            put_bits(&buf, 8, fs->words[i]); // Words
+        }
+        // framesignature
+        for (i = 0; i < SIGELEM_SIZE/5; i++) {
+            put_bits(&buf, 8, fs->framesig[i]);
+        }
+    }
+
+    avpriv_align_put_bits(&buf);
+    flush_put_bits(&buf);
+
+    fwrite(buffer, 1, put_bits_count(&buf)/8, f);
+    fclose(f);
+
+    free(&buffer);
+    return 0;
+}*/
 
 int main() {
     slog_init("logfile", "slog.cfg", 10, 1);
-    printf("kek");
     slog(0, SLOG_LIVE, "Test message with level 0");
     slog(1, SLOG_INFO, "Test message with level 0");
     slog(2, SLOG_WARN, "Test message with level 0");
+    Assert(0);
 
 
     return 0;
