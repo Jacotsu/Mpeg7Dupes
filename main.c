@@ -1,6 +1,69 @@
 #include "main.h"
 
 /*
+typedef struct SignatureContext {
+    const AVClass *class;
+    // input parameters
+    int mode;
+    int nb_inputs;
+    char *filename;
+    int format;
+    int thworddist;
+    int thcomposdist;
+    int thl1;
+    int thdi;
+    int thit;
+    // end input parameters
+
+    uint8_t l1distlut[243*242/2]; // 243 + 242 + 241 ...
+    StreamContext* streamcontexts;
+} SignatureContext;
+
+typedef struct FineSignature {
+    struct FineSignature* next;
+    struct FineSignature* prev;
+    uint64_t pts;
+    uint32_t index; // needed for xmlexport
+    uint8_t confidence;
+    uint8_t words[5];
+    uint8_t framesig[SIGELEM_SIZE/5];
+} FineSignature;
+
+typedef struct CoarseSignature {
+    uint8_t data[5][31]; // 5 words with min. 243 bit
+    struct FineSignature* first; // associated Finesignatures
+    struct FineSignature* last;
+    struct CoarseSignature* next;
+} CoarseSignature;
+
+typedef struct StreamContext {
+    AVRational time_base;
+    // needed for xml_export
+    int w; // height
+    int h; // width
+
+    // overflow protection
+    int divide;
+
+    FineSignature* finesiglist;
+    FineSignature* curfinesig;
+
+    CoarseSignature* coarsesiglist;
+    CoarseSignature* coarseend; // needed for xml export
+    // helpers to store the alternating signatures
+    CoarseSignature* curcoarsesig1;
+    CoarseSignature* curcoarsesig2;
+
+    int coarsecount; // counter from 0 to 89
+    int midcoarse;   // whether it is a coarsesignature beginning from 45 + i * 90
+    uint32_t lastindex; // helper to store amount of frames
+
+    int exported; // boolean whether stream already exported
+} StreamContext;
+
+*/
+
+/*
 
 static unsigned int intersection_word(
     const uint8_t *first,
@@ -504,7 +567,7 @@ void match(SignatureContext *sic) {
 }
 
 */
-/*
+
 static int
 binary_import(const char* filename)
 {
@@ -512,91 +575,178 @@ binary_import(const char* filename)
     FineSignature* fs;
     CoarseSignature* cs;
     uint32_t numofsegments = (sc->lastindex + 44)/45;
-    int i, j;
-    PutBitContext buf;
-    // buffer + header + coarsesignatures + finesignature
-    int len = (512 + 6 * 32 + 3*16 + 2 +
-        numofsegments * (4*32 + 1 + 5*243) +
-        sc->lastindex * (2 + 32 + 6*8 + 608)) / 8;
+    unsigned int i, j, rResult;
 
-    uint8_t* buffer = (uint8_t*) calloc(len, sizeof(uint8_t));
+	SignatureContext *sc = NULL;
 
-    assert(buffer);
-    if (!buffer)
-        return AVERROR(ENOMEM);
 
-    f = fopen(filename, "wb");
+    f = fopen(filename, "rb");
     if (!f) {
-        int err = AVERROR(EINVAL);
-        char buf[128];
-        av_strerror(err, buf, sizeof(buf));
-        av_log(ctx, AV_LOG_ERROR, "cannot open file %s: %s\n", filename, buf);
-        av_freep(&buffer);
-        return err;
+        slog_error(0, "Can't open %s", filename);
+		exit(1);
     }
-    init_put_bits(&buf, buffer, len);
 
-    put_bits32(&buf, 1); // NumOfSpatial Regions, only 1 supported
-    put_bits(&buf, 1, 1); // SpatialLocationFlag, always the whole image
-    put_bits32(&buf, 0); // PixelX,1 PixelY,1, 0,0
-    put_bits(&buf, 16, sc->w-1 & 0xFFFF); // PixelX,2
-    put_bits(&buf, 16, sc->h-1 & 0xFFFF); // PixelY,2
-    put_bits32(&buf, 0); // StartFrameOfSpatialRegion
-    put_bits32(&buf, sc->lastindex); // NumOfFrames
+    // We get to total file length
+    fseek(f, 0, SEEK_END);
+    unsigned int fileLength = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+
+    // Read number of spatial regions, only 1 supported
+    // read exactly 32 bits from a bitstream.
+
+    uint32_t numOfSpatialRegions;
+  	rResult = fread (&numOfSpatialRegions, 1, sizeof(uint32_t), f);
+	Assert(rResult == 1);
+    Assert(numOfSpatialRegions == 1);
+
+
+    // bits are inserted fro high mem to low mem
+    // SpatialLocationFlag, always the whole image
+    uint8_t spatialLocationFlag;
+  	rResult = fread (&spatialLocationFlag, 1, sizeof(uint8_t), f);
+	Assert(rResult == 1);
+	spatialLocationFlag &= 0x8000;
+
+    // PixelX PixelY, should be 0,0
+    uint16_t startPixelX;
+  	rResult = fread (&startPixelX, 1, sizeof(uint16_t), f);
+	Assert(rResult == 1);
+
+    uint16_t startPixelY;
+  	rResult = fread (&startPixelY, 1, sizeof(uint16_t), f);
+	Assert(rResult == 1);
+
+	// width - 1, and height - 1
+    uint16_t width;
+  	rResult = fread (&width, 1, sizeof(uint16_t), f);
+	Assert(rResult == 1);
+
+    uint16_t height;
+  	rResult = fread (&height, 1, sizeof(uint16_t), f);
+	Assert(rResult == 1);
+
+
+    // StartFrameOfSpatialRegion
+    uint32_t startFrameOfSpatialRegion;
+  	rResult = fread (&startFrameOfSpatialRegion, 1, sizeof(uint32_t), f);
+	Assert(rResult == 1);
+
+
+    // NumOfFrames
+    uint32_t numOfFrames = buffer[cursor];
+  	rResult = fread (&numOfFrames, 1, sizeof(uint32_t), f);
+	Assert(rResult == 1);
+    cursor += 4;
+
+
     // hoping num is 1, other values are vague
     // den/num might be greater than 16 bit, so cutting it
-    put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
-    put_bits(&buf, 1, 1); // MediaTimeFlagOfSpatialRegion
-    put_bits32(&buf, 0); // StartMediaTimeOfSpatialRegion
-    put_bits32(&buf, 0xFFFFFFFF & sc->coarseend->last->pts); // EndMediaTimeOfSpatialRegion
-    put_bits32(&buf, numofsegments); // NumOfSegments
-    // coarsesignatures 
-    for (cs = sc->coarsesiglist; cs; cs = cs->next) {
-        put_bits32(&buf, cs->first->index); // StartFrameOfSegment
-        put_bits32(&buf, cs->last->index); // EndFrameOfSegment
-        put_bits(&buf, 1, 1); // MediaTimeFlagOfSegment
-        put_bits32(&buf, 0xFFFFFFFF & cs->first->pts); // StartMediaTimeOfSegment
-        put_bits32(&buf, 0xFFFFFFFF & cs->last->pts); // EndMediaTimeOfSegment
+    //put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
+	uint32_t mediaTimeUnit = buffer[cursor];
+	cursor += 2;
+
+
+
+    // MediaTimeFlagOfSpatialRegion
+    uint32_t mediaTimeFlagOfSpatialRegion = buffer[cursor++] & 0x8000;
+
+    // StartMediaTimeOfSpatialRegion
+    uint32_t startMediaTimeOfSpatialRegion = buffer[cursor];
+    cursor += 4;
+
+    // EndMediaTimeOfSpatialRegion
+    uint32_t endMediaTimeOfSpatialRegion = buffer[cursor];
+    cursor += 4;
+
+
+
+    // NumOfSegments
+    uint32_t numOfSegments = buffer[cursor];
+    cursor += 4;
+
+    // Coarse signatures
+    for (uint32_t i = 0; i < numOfSegments; ++i) {
+		CoarseSignature *cSign = calloc(1, sizeof(CoarseSignature));
+
+        // each coarse signature is a VSVideoSegment
+
+        // StartFrameOfSegment 32 bits
+        uint32_t startFrameOfSegment = buffer[cursor];
+        cursor += 4;
+
+        // EndFrameOfSegment 32 bits
+        uint32_t endFrameOfSegment = buffer[cursor];
+        cursor += 4;
+
+        // MediaTimeFlagOfSegment 1 bit
+        uint32_t mediaTimeFlagOfSegment = buffer[cursor++] & 0x8000;
+
+
+        // StartMediaTimeOfSegment 32 bits
+        uint32_t startMediaTimeOfSegment = buffer[cursor];
+        cursor += 4;
+
+        // EndMediaTimeOfSegment 32 bits
+        uint32_t endMediaTimeOfSegment = buffer[cursor];
+        cursor += 4;
+
+		uint8_t *data = (uint8_t*) calloc(31, sizeof(uint8_t));
+		// Bag of words
         for (i = 0; i < 5; i++) {
-            // put 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
+            // read 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
             for (j = 0; j < 30; j++) {
-                put_bits(&buf, 8, cs->data[i][j]);
+				data[i][j] = buffer[cursor++];
             }
-            put_bits(&buf, 3, cs->data[i][30] >> 5);
+			data[i][30] = buffer[cursor++] << 5;
         }
     }
-    // finesignatures
-    put_bits(&buf, 1, 0); // CompressionFlag, only 0 supported
-    for (fs = sc->finesiglist; fs; fs = fs->next) {
-        put_bits(&buf, 1, 1); // MediaTimeFlagOfFrame
-        put_bits32(&buf, 0xFFFFFFFF & fs->pts); // MediaTimeOfFrame
-        put_bits(&buf, 8, fs->confidence); // FrameConfidence
+
+
+    // Finesignatures
+    // CompressionFlag, only 0 supported
+    uint32_t compressionFlag = buffer[cursor++] & 0x8000;
+    Assert(compressionFlag == 0);
+
+    for (; cursor < fileLength; cursor += 1+4+1+1*5+SIGELEM_SIZE/5) {
+
+        // Each fine signature is a VideoFrame
+        // MediaTimeFlagOfFrame
+        uint32_t mediaTimeFlagOfFrame = buffer[cursor++] & 0x8000;
+
+
+        // MediaTimeOfFrame
+        uint32_t mediaTimeOfFrame = buffer[cursor];
+        cursor += 4;
+
+        // FrameConfidence
+        uint32_t frameConfidence = buffer[cursor++];
+
+
+        uint8_t *words = (uint8_t*) calloc(5, sizeof(uint8_t));
         for (i = 0; i < 5; i++) {
-            put_bits(&buf, 8, fs->words[i]); // Words
+            // words
+            words[i] = buffer[cursor++];
         }
+
         // framesignature
+        uint8_t *frameSignatures = (uint8_t*) calloc(5, sizeof(uint8_t));
         for (i = 0; i < SIGELEM_SIZE/5; i++) {
             put_bits(&buf, 8, fs->framesig[i]);
         }
     }
 
     avpriv_align_put_bits(&buf);
-    flush_put_bits(&buf);
-
-    fwrite(buffer, 1, put_bits_count(&buf)/8, f);
     fclose(f);
-
     free(&buffer);
     return 0;
-}*/
+}
 
 int main() {
     slog_init("logfile", "slog.cfg", 10, 1);
     slog(0, SLOG_LIVE, "Test message with level 0");
     slog(1, SLOG_INFO, "Test message with level 0");
     slog(2, SLOG_WARN, "Test message with level 0");
-    Assert(0);
-
 
     return 0;
 }
