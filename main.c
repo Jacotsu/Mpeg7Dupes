@@ -600,7 +600,6 @@ binary_import(const char* filename)
 	Assert(rResult == 1);
     Assert(numOfSpatialRegions == 1);
 
-
     // bits are inserted fro high mem to low mem
     // SpatialLocationFlag, always the whole image
     uint8_t spatialLocationFlag;
@@ -609,61 +608,64 @@ binary_import(const char* filename)
 	spatialLocationFlag &= 0x8000;
 
     // PixelX PixelY, should be 0,0
-    uint16_t startPixelX;
+    uint16_t startPixelX, startPixelY;
   	rResult = fread (&startPixelX, 1, sizeof(uint16_t), f);
 	Assert(rResult == 1);
-
-    uint16_t startPixelY;
   	rResult = fread (&startPixelY, 1, sizeof(uint16_t), f);
 	Assert(rResult == 1);
 
 	// width - 1, and height - 1
-    uint16_t width;
+    uint16_t width, height;
   	rResult = fread (&width, 1, sizeof(uint16_t), f);
 	Assert(rResult == 1);
-
-    uint16_t height;
+    width += 1;
   	rResult = fread (&height, 1, sizeof(uint16_t), f);
 	Assert(rResult == 1);
+    height += 1;
 
-
-    // StartFrameOfSpatialRegion
+    // StartFrameOfSpatialRegion, usually 0
     uint32_t startFrameOfSpatialRegion;
   	rResult = fread (&startFrameOfSpatialRegion, 1, sizeof(uint32_t), f);
 	Assert(rResult == 1);
 
 
     // NumOfFrames
-    uint32_t numOfFrames = buffer[cursor];
+    uint32_t numOfFrames;
   	rResult = fread (&numOfFrames, 1, sizeof(uint32_t), f);
 	Assert(rResult == 1);
-    cursor += 4;
 
 
     // hoping num is 1, other values are vague
     // den/num might be greater than 16 bit, so cutting it
     //put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
-	uint32_t mediaTimeUnit = buffer[cursor];
-	cursor += 2;
+	uint16_t mediaTimeUnit;
+    rResult = fread(&mediaTimeUnit, 1, sizeof(uint16_t), f);
+    Assert(rResult == 1);
 
 
 
     // MediaTimeFlagOfSpatialRegion
-    uint32_t mediaTimeFlagOfSpatialRegion = buffer[cursor++] & 0x8000;
+    uint8_t mediaTimeFlagOfSpatialRegion;
+    rResult = fread(&mediaTimeFlagOfSpatialRegion, 1, sizeof(uint8_t), f);
+    Assert(rResult == 1);
+    mediaTimeFlagOfSpatialRegion &= 0x8000;
 
-    // StartMediaTimeOfSpatialRegion
-    uint32_t startMediaTimeOfSpatialRegion = buffer[cursor];
-    cursor += 4;
+    // StartMediaTimeOfSpatialRegion, usually 0
+    uint32_t startMediaTimeOfSpatialRegion;
+    rResult = fread(&mediaTimeFlagOfSpatialRegion, 1, sizeof(uint32_t), f);
+    Assert(rResult == 1);
 
-    // EndMediaTimeOfSpatialRegion
-    uint32_t endMediaTimeOfSpatialRegion = buffer[cursor];
-    cursor += 4;
+    // EndMediaTimeOfSpatialRegion, sc->coarseend->last->pts
+    uint32_t endMediaTimeOfSpatialRegion;
+    rResult = fread(&endMediaTimeOfSpatialRegion, 1, sizeof(uint32_t), f);
+    Assert(rResult == 1);
 
 
 
     // NumOfSegments
-    uint32_t numOfSegments = buffer[cursor];
-    cursor += 4;
+    uint32_t numOfSegments;
+    rResult = fread(&numOfFrames, 1, sizeof(uint32_t), f);
+    Assert(rResult == 1);
 
     // Coarse signatures
     for (uint32_t i = 0; i < numOfSegments; ++i) {
@@ -672,73 +674,83 @@ binary_import(const char* filename)
         // each coarse signature is a VSVideoSegment
 
         // StartFrameOfSegment 32 bits
-        uint32_t startFrameOfSegment = buffer[cursor];
-        cursor += 4;
+        uint32_t startFrameOfSegment;
+        rResult = fread(&startFrameOfSegment, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
         // EndFrameOfSegment 32 bits
-        uint32_t endFrameOfSegment = buffer[cursor];
-        cursor += 4;
+        uint32_t endFrameOfSegment;
+        rResult = fread(&endFrameOfSegment, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
         // MediaTimeFlagOfSegment 1 bit
-        uint32_t mediaTimeFlagOfSegment = buffer[cursor++] & 0x8000;
+        uint8_t mediaTimeFlagOfSegment;
+        rResult = fread(&mediaTimeFlagOfSegment, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
+        mediaTimeFlagOfSegment &= 0x8000;
 
 
         // StartMediaTimeOfSegment 32 bits
-        uint32_t startMediaTimeOfSegment = buffer[cursor];
-        cursor += 4;
+        uint32_t startMediaTimeOfSegment;
+        rResult = fread(&startMediaTimeOfSegment, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
         // EndMediaTimeOfSegment 32 bits
-        uint32_t endMediaTimeOfSegment = buffer[cursor];
-        cursor += 4;
+        uint32_t endMediaTimeOfSegment;
+        rResult = fread(&endMediaTimeOfSegment, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
 		uint8_t *data = (uint8_t*) calloc(31, sizeof(uint8_t));
 		// Bag of words
         for (i = 0; i < 5; i++) {
             // read 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
-            for (j = 0; j < 30; j++) {
-				data[i][j] = buffer[cursor++];
-            }
-			data[i][30] = buffer[cursor++] << 5;
+            rResult = fread(&data[i][0], 31, sizeof(uint8_t), f);
+            Assert(rResult == 31);
+            data[i][30] = data[i][30] << 5;
         }
     }
 
 
     // Finesignatures
     // CompressionFlag, only 0 supported
-    uint32_t compressionFlag = buffer[cursor++] & 0x8000;
+    uint32_t compressionFlag;
+    rResult = fread(&compressionFlag, 1, sizeof(uint8_t), f);
+    Assert(rResult == 1);
+    compressionFlag &= 0x8000;
     Assert(compressionFlag == 0);
 
-    for (; cursor < fileLength; cursor += 1+4+1+1*5+SIGELEM_SIZE/5) {
+    // Remaining bytes should be all fine signatures
 
-        // Each fine signature is a VideoFrame
-        // MediaTimeFlagOfFrame
-        uint32_t mediaTimeFlagOfFrame = buffer[cursor++] & 0x8000;
+    while (!feof(f)) {
+        uint32_t mediaTimeFlagOfFrame;
+        rResult = fread(&mediaTimeFlagOfFrame, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
+        mediaTimeFlagOfFrame &= 0x8000;
+        Assert(mediaTimeFlagOfFrame == 1);
 
+        uint32_t mediaTimeOfFrame;
+        rResult = fread(&mediaTimeOfFrame, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
-        // MediaTimeOfFrame
-        uint32_t mediaTimeOfFrame = buffer[cursor];
-        cursor += 4;
-
-        // FrameConfidence
-        uint32_t frameConfidence = buffer[cursor++];
+        uint32_t frameConfidence;
+        rResult = fread(&frameConfidence, 1, sizeof(uint32_t), f);
+        Assert(rResult == 1);
 
 
         uint8_t *words = (uint8_t*) calloc(5, sizeof(uint8_t));
-        for (i = 0; i < 5; i++) {
-            // words
-            words[i] = buffer[cursor++];
-        }
+        rResult = fread(words, 5, sizeof(uint8_t), f);
+        Assert(rResult == 5);
 
-        // framesignature
-        uint8_t *frameSignatures = (uint8_t*) calloc(5, sizeof(uint8_t));
-        for (i = 0; i < SIGELEM_SIZE/5; i++) {
-            put_bits(&buf, 8, fs->framesig[i]);
-        }
-    }
 
-    avpriv_align_put_bits(&buf);
+        uint8_t *frameSignatures = (uint8_t*) calloc(SIGELEM_SIZE/5,\
+                sizeof(uint8_t));
+        rResult = fread(frameSignatures, SIGELEM_SIZE/5, sizeof(uint8_t), f);
+        Assert(rResult == 5);
+
+    };
+
+
     fclose(f);
-    free(&buffer);
     return 0;
 }
 
