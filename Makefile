@@ -15,18 +15,22 @@ OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:.c=.o))
 
 all: release
 
+.PHONY: buildDirs
+buildDirs:
+	@mkdir -p ${BIN_DIR}
+	@mkdir -p $(BUILD_DIR)
+
 .PHONY: release
-release:
+release: buildDirs
 	@echo Building release
 	@$(MAKE) $(MAKEFILE) link
 
 .PHONY: debug
-debug:
+debug: buildDirs
 	@echo Building debug
 	@$(MAKE) $(MAKEFILE) DEBUG="1" link
 
 link: ${OBJS}
-	@mkdir -p ${BIN_DIR}
 	@echo Linking
 ifndef DEBUG
 	$(CC) $^ -o ${BIN_DIR}/mpeg7MatchRelease.elf ${LIBS}
@@ -35,7 +39,6 @@ else
 endif
 
 compile: ${OBJS}
-	@mkdir -p $(BUILD_DIR)
 	@echo Compiling
 
 ${BUILD_DIR}/%o:%c
