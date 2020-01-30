@@ -1,43 +1,52 @@
 LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
 INCLUDES = -I /usr/include/x86_64-linux-gnu
-#CFLAGS = -Wall -Wextra
-CFLAGS =
+CFLAGS = -Wall -Wextra
 CRELEASEFLAGS = -O2
 CDEBUGFLAGS = -g
 
+BUILD_DIR = build
+BIN_DIR = bin
+
 # Should be equivalent to your list of C files, if you don't build selectively
 SRCS=$(wildcard *.c)
-OBJS=$(SRCS:.c=.o)
+HEADERS=$(wildcard *.h)
+OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:.c=.o))
 
-DEST_DIR=build
-
-.PHONY: clean release debug
 
 all: release
 
+.PHONY: release
 release:
 	@echo Building release
-	$(MAKE) $(MAKEFILE) link
+	@$(MAKE) $(MAKEFILE) link
 
+.PHONY: debug
 debug:
 	@echo Building debug
-	@$(MAKE) $(MAKEFILE) DEBUG="" link
+	@$(MAKE) $(MAKEFILE) DEBUG="1" link
 
-link: compile
+link: ${OBJS}
+	@mkdir -p ${BIN_DIR}
 	@echo Linking
-	#$(CC) ${OBJS} -o ${DEST_DIR}/mpeg7Match.elf ${LIBS}
-
-compile: ${SRCS}
-	# DO NOT change the options order
-	@mkdir -p $(DEST_DIR)
-	@echo $<
-	@echo ${DEST_DIR}/$(<:.c=.o)
 ifndef DEBUG
-	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o ${DEST_DIR}/$(<:.c=.o) ${INCLUDES}
+	$(CC) $^ -o ${BIN_DIR}/mpeg7MatchRelease.elf ${LIBS}
 else
-	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o ${DEST_DIR}/$(<:.c=.o) ${INCLUDES}
+	$(CC) $^ -o ${BIN_DIR}/mpeg7MatchDebug.elf ${LIBS}
 endif
 
+compile: ${OBJS}
+	@mkdir -p $(BUILD_DIR)
+	@echo Compiling
+
+${BUILD_DIR}/%o:%c
+	# DO NOT change the options order
+ifndef DEBUG
+	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
+else
+	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+endif
+
+.PHONY: clean
 clean:
 	@echo "Cleaning files"
 	@$(RM) -r $(DEST_DIR)
