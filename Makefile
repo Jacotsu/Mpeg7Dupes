@@ -1,5 +1,8 @@
-LIBS  = -lslog -lpthread
-CFLAGS = -O2 -Wall -g
+LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
+INCLUDES = -I /usr/include/x86_64-linux-gnu
+CFLAGS = -Wall -Wextra
+CRELEASEFLAGS = -O2
+CDEBUGFLAGS = -g
 
 # Should be equivalent to your list of C files, if you don't build selectively
 SRCS=$(wildcard *.c)
@@ -7,23 +10,30 @@ OBJS=$(SRCS:.c=.o)
 
 DEST_DIR=build
 
-
-.PHONY: clean
+.PHONY: clean release debug
 
 all: release
 
-release: ${DEST_DIR}/${OBJS}
-ifndef DEBUG
+release:
 	@echo Building release
-endif
+	$(MAKE) $(MAKEFILE) link
 
-debug: ${DEST_DIR}/${OBJS}
+debug:
 	@echo Building debug
-	@$(MAKE) $(MAKEFILE) DEBUG="${CFLAGS} -g"
+	@$(MAKE) $(MAKEFILE) DEBUG="" link
 
-${DEST_DIR}/%.o: %.c
+link:${DEST_DIR}/${OBJS}
+	@echo Linking
+	$(CC) $< -o ${DEST_DIR}/mpeg7Match.elf ${LIBS}
+
+${DEST_DIR}/${OBJS}: ${SRCS}
+	# DO NOT change the options order
 	@mkdir -p $(DEST_DIR)
-	$(CC) ${CFLAGS} ${DEBUG}  $< -o $@ ${LIBS}
+ifndef DEBUG
+	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
+else
+	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+endif
 
 clean:
 	@echo "Cleaning files"
