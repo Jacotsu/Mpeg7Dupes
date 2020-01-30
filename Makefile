@@ -1,6 +1,7 @@
 LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
 INCLUDES = -I /usr/include/x86_64-linux-gnu
-CFLAGS = -Wall -Wextra
+#CFLAGS = -Wall -Wextra
+CFLAGS =
 CRELEASEFLAGS = -O2
 CDEBUGFLAGS = -g
 
@@ -22,17 +23,19 @@ debug:
 	@echo Building debug
 	@$(MAKE) $(MAKEFILE) DEBUG="" link
 
-link:${DEST_DIR}/${OBJS}
+link: compile
 	@echo Linking
-	$(CC) $< -o ${DEST_DIR}/mpeg7Match.elf ${LIBS}
+	#$(CC) ${OBJS} -o ${DEST_DIR}/mpeg7Match.elf ${LIBS}
 
-${DEST_DIR}/${OBJS}: ${SRCS}
+compile: ${SRCS}
 	# DO NOT change the options order
 	@mkdir -p $(DEST_DIR)
+	@echo $<
+	@echo ${DEST_DIR}/$(<:.c=.o)
 ifndef DEBUG
-	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
+	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o ${DEST_DIR}/$(<:.c=.o) ${INCLUDES}
 else
-	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o ${DEST_DIR}/$(<:.c=.o) ${INCLUDES}
 endif
 
 clean:

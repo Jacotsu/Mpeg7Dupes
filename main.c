@@ -1,584 +1,25 @@
 #include "main.h"
 
-/*
-typedef struct SignatureContext {
-    const AVClass *class;
-    // input parameters
-    int mode;
-    int nb_inputs;
-    char *filename;
-    int format;
-    int thworddist;
-    int thcomposdist;
-    int thl1;
-    int thdi;
-    int thit;
-    // end input parameters
 
-    uint8_t l1distlut[243*242/2]; // 243 + 242 + 241 ...
-    StreamContext* streamcontexts;
-} SignatureContext;
+int
+fineSignatureCmp(const void* p1, const void* p2) {
+    if (((FineSignature*) p1)->pts <= ((FineSignature*) p2)->pts) return -1;
+    if (((FineSignature*) p1)->pts == ((FineSignature*) p2)->pts) return 0;
+    if (((FineSignature*) p1)->pts >= ((FineSignature*) p2)->pts) return -1;
 
-typedef struct FineSignature {
-    struct FineSignature* next;
-    struct FineSignature* prev;
-    uint64_t pts;
-    uint32_t index; // needed for xmlexport
-    uint8_t confidence;
-    uint8_t words[5];
-    uint8_t framesig[SIGELEM_SIZE/5];
-} FineSignature;
+    LoggedAssert(0, "Fine signature compare didn't return a valid value");
+};
 
-typedef struct CoarseSignature {
-    uint8_t data[5][31]; // 5 words with min. 243 bit
-    struct FineSignature* first; // associated Finesignatures
-    struct FineSignature* last;
-    struct CoarseSignature* next;
-} CoarseSignature;
-
-typedef struct StreamContext {
-    AVRational time_base;
-    // needed for xml_export
-    int w; // height
-    int h; // width
-
-    // overflow protection
-    int divide;
-
-    FineSignature* finesiglist;
-    FineSignature* curfinesig;
-
-    CoarseSignature* coarsesiglist;
-    CoarseSignature* coarseend; // needed for xml export
-    // helpers to store the alternating signatures
-    CoarseSignature* curcoarsesig1;
-    CoarseSignature* curcoarsesig2;
-
-    int coarsecount; // counter from 0 to 89
-    int midcoarse;   // whether it is a coarsesignature beginning from 45 + i * 90
-    uint32_t lastindex; // helper to store amount of frames
-
-    int exported; // boolean whether stream already exported
-} StreamContext;
-
-*/
-
-/*
-
-static unsigned int intersection_word(
-    const uint8_t *first,
-    const uint8_t *second)
-{
-    unsigned int val=0,i;
-    for (i = 0; i < 28; i += 4) {
-        val += av_popcount( (first[i]   & second[i]  ) << 24 |
-                            (first[i+1] & second[i+1]) << 16 |
-                            (first[i+2] & second[i+2]) << 8  |
-                            (first[i+3] & second[i+3]) );
-    }
-    val += av_popcount( (first[28] & second[28]) << 16 |
-                        (first[29] & second[29]) << 8  |
-                        (first[30] & second[30]) );
-    return val;
-}
-
-static unsigned int union_word(
-    const uint8_t *first,
-    const uint8_t *second)
-{
-    unsigned int val=0,i;
-    for (i = 0; i < 28; i += 4) {
-        val += av_popcount( (first[i]   | second[i]  ) << 24 |
-                            (first[i+1] | second[i+1]) << 16 |
-                            (first[i+2] | second[i+2]) << 8  |
-                            (first[i+3] | second[i+3]) );
-    }
-    val += av_popcount( (first[28] | second[28]) << 16 |
-                        (first[29] | second[29]) << 8  |
-                        (first[30] | second[30]) );
-    return val;
-}
-
-static int get_jaccarddist(
-    SignatureContext *sc,
-    CoarseSignature *first,
-    CoarseSignature *second)
-{
-    int jaccarddist, i, composdist = 0, cwthcount = 0;
-    for (i = 0; i < 5; i++) {
-        if ((jaccarddist = intersection_word(first->data[i],
-                second->data[i])) > 0) {
-            jaccarddist /= union_word(first->data[i], second->data[i]);
-        }
-        if (jaccarddist >= sc->thworddist) {
-            if (++cwthcount > 2) {
-                // more than half (5/2) of distances are too wide 
-                return 0;
-            }
-        }
-        composdist += jaccarddist;
-        if (composdist > sc->thcomposdist) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static unsigned int get_l1dist(
-    SignatureContext *sc,
-    const uint8_t *first,
-    const uint8_t *second)
-{
-    unsigned int i;
-    unsigned int dist = 0;
-    uint8_t f, s;
-
-    for (i = 0; i < SIGELEM_SIZE/5; i++) {
-        if (first[i] != second[i]) {
-            f = first[i];
-            s = second[i];
-            if (f > s) {
-                // little variation of gauss sum formula
-                dist += sc->l1distlut[243*242/2 - (243-s)*\
-                        (242-s)/2 + f - s - 1];
-            } else {
-                dist += sc->l1distlut[243*242/2 - (243-f)*\
-                        (242-f)/2 + s - f - 1];
-            }
-        }
-    }
-    return dist;
-}
-
-
-static MatchingInfo* get_matching_parameters(
-        SignatureContext *sc,
-        FineSignature *first,
-        FineSignature *second)
-{
-    FineSignature *f, *s;
-    size_t i, j, k, l, hmax = 0, score;
-    int framerate, offset, l1dist;
-    double m;
-    MatchingInfo *cands = NULL, *c = NULL;
-
-    struct {
-        uint8_t size;
-        unsigned int dist;
-        FineSignature *a;
-        uint8_t b_pos[COARSE_SIZE];
-        FineSignature *b[COARSE_SIZE];
-    } pairs[COARSE_SIZE];
-
-    typedef struct hspace_elem {
-        int dist;
-        size_t score;
-        FineSignature *a;
-        FineSignature *b;
-    } hspace_elem;
-
-    // houghspace 
-    hspace_elem** hspace = (hspace_elem**) \
-        calloc(MAX_FRAMERATE, sizeof(hspace_elem *));
-
-    // initialize houghspace
-    for (i = 0; i < MAX_FRAMERATE; i++) {
-        hspace[i] = (hspace_elem*) \
-            calloc(2 * HOUGH_MAX_OFFSET + 1, sizeof(hspace_elem));
-        for (j = 0; j < HOUGH_MAX_OFFSET; j++) {
-            hspace[i][j].score = 0;
-            hspace[i][j].dist = 99999;
-        }
-    }
-
-    // l1 distances
-    for (i = 0, f = first; i < COARSE_SIZE && f->next; i++, f = f->next) {
-        pairs[i].size = 0;
-        pairs[i].dist = 99999;
-        pairs[i].a = f;
-        for (j = 0, s = second; j < COARSE_SIZE && s->next; j++, s = s->next) {
-            // l1 distance of finesignature
-            l1dist = get_l1dist(sc, f->framesig, s->framesig);
-            if (l1dist < sc->thl1) {
-                if (l1dist < pairs[i].dist) {
-                    pairs[i].size = 1;
-                    pairs[i].dist = l1dist;
-                    pairs[i].b_pos[0] = j;
-                    pairs[i].b[0] = s;
-                } else if (l1dist == pairs[i].dist) {
-                    pairs[i].b[pairs[i].size] = s;
-                    pairs[i].b_pos[pairs[i].size] = j;
-                    pairs[i].size++;
-                }
-            }
-        }
-    }
-    // last incomplete coarsesignature
-    if (f->next == NULL) {
-        for (; i < COARSE_SIZE; i++) {
-            pairs[i].size = 0;
-            pairs[i].dist = 99999;
-        }
-    }
-
-    // hough transformation
-    for (i = 0; i < COARSE_SIZE; i++) {
-        for (j = 0; j < pairs[i].size; j++) {
-            for (k = i + 1; k < COARSE_SIZE; k++) {
-                for (l = 0; l < pairs[k].size; l++) {
-                    if (pairs[i].b[j] != pairs[k].b[l]) {
-                        // linear regression
-                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i); // good value between 0.0 - 2.0 
-                        framerate = (int) m*30 + 0.5; // round up to 0 - 60 
-                        if (framerate>0 && framerate <= MAX_FRAMERATE) {
-                            offset = pairs[i].b_pos[j] - ((int) m*i + 0.5); // only second part has to be rounded up
-                            if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-                                if (pairs[i].dist < pairs[k].dist) {
-                                    if (pairs[i].dist < hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist) {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[i].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[i].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[i].b[j];
-                                    }
-                                } else {
-                                    if (pairs[k].dist < hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist) {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[k].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[k].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[k].b[l];
-                                    }
-                                }
-
-                                score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
-                                if (score > hmax )
-                                    hmax = score;
-                                hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score = score;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (hmax > 0) {
-        hmax = (int) (0.7*hmax);
-        for (i = 0; i < MAX_FRAMERATE; i++) {
-            for (j = 0; j < HOUGH_MAX_OFFSET; j++) {
-                if (hmax < hspace[i][j].score) {
-                    if (c == NULL) {
-                        c = (MatchingInfo*) malloc(sizeof(MatchingInfo));
-                        if (!c)
-                            printf("could not allocate memory");
-                        cands = c;
-                    } else {
-                        c->next = (struct MatchingInfo *) \
-                            malloc(sizeof(MatchingInfo));
-                        if (!c->next)
-                            printf("could not allocate memory");
-                        c = c->next;
-                    }
-                    c->framerateratio = (i+1.0) / 30;
-                    c->score = hspace[i][j].score;
-                    c->offset = j-90;
-                    c->first = hspace[i][j].a;
-                    c->second = hspace[i][j].b;
-                    c->next = NULL;
-
-                    // not used
-                    c->meandist = 0;
-                    c->matchframes = 0;
-                    c->whole = 0;
-                }
-            }
-        }
-    }
-    for (i = 0; i < MAX_FRAMERATE; i++) {
-        av_freep(&hspace[i]);
-    }
-    av_freep(&hspace);
-    return cands;
-}
-
-static MatchingInfo evaluate_parameters(
-        SignatureContext *sc,
-        MatchingInfo *infos,
-        MatchingInfo bestmatch,
-        int mode)
-{
-    int dist, distsum = 0, bcount = 1, dir = DIR_NEXT;
-    int fcount = 0, goodfcount = 0, gooda = 0, goodb = 0;
-    double meandist, minmeandist = bestmatch.meandist;
-    int tolerancecount = 0;
-    FineSignature *a, *b, *aprev, *bprev;
-    int status = STATUS_NULL;
-
-    for (; infos != NULL; infos = infos->next) {
-        a = infos->first;
-        b = infos->second;
-        while (1) {
-            dist = get_l1dist(sc, a->framesig, b->framesig);
-
-            if (dist > sc->thl1) {
-                if (a->confidence >= 1 || b->confidence >= 1) {
-                    // bad frame (because high different information)
-                    tolerancecount++;
-                }
-
-                if (tolerancecount > 2) {
-                    a = aprev;
-                    b = bprev;
-                    if (dir == DIR_NEXT) {
-                        // turn around
-                        a = infos->first;
-                        b = infos->second;
-                        dir = DIR_PREV;
-                    } else {
-                        break;
-                    }
-                }
-            } else {
-                // good frame
-                distsum += dist;
-                goodfcount++;
-                tolerancecount=0;
-
-                aprev = a;
-                bprev = b;
-
-                if (a->confidence < 1) gooda++;
-                if (b->confidence < 1) goodb++;
-            }
-
-            fcount++;
-
-            dir = iterate_frame(infos->framerateratio, &a, &b, fcount, &bcount, dir);
-            if (dir == DIR_NEXT_END) {
-                status = STATUS_END_REACHED;
-                a = infos->first;
-                b = infos->second;
-                dir = iterate_frame(infos->framerateratio, &a, &b, fcount, &bcount, DIR_PREV);
-            }
-
-            if (dir == DIR_PREV_END) {
-                status |= STATUS_BEGIN_REACHED;
-                break;
-            }
-
-            if (sc->thdi != 0 && bcount >= sc->thdi) {
-                break; // enough frames found
-            }
-        }
-
-        if (bcount < sc->thdi)
-            continue; // matching sequence is too short
-        if ((double) goodfcount / (double) fcount < sc->thit)
-            continue;
-        if ((double) goodfcount*0.5 < FFMAX(gooda, goodb))
-            continue;
-
-        meandist = (double) goodfcount / (double) distsum;
-
-        if (meandist < minmeandist ||
-                status == STATUS_END_REACHED | STATUS_BEGIN_REACHED ||
-                mode == MODE_FAST){
-            minmeandist = meandist;
-            // bestcandidate in this iteration
-            bestmatch.meandist = meandist;
-            bestmatch.matchframes = bcount;
-            bestmatch.framerateratio = infos->framerateratio;
-            bestmatch.score = infos->score;
-            bestmatch.offset = infos->offset;
-            bestmatch.first = infos->first;
-            bestmatch.second = infos->second;
-            bestmatch.whole = 0; // will be set to true later
-            bestmatch.next = NULL;
-        }
-
-        // whole sequence is automatically best match
-        if (status == (STATUS_END_REACHED | STATUS_BEGIN_REACHED)) {
-            bestmatch.whole = 1;
-            break;
-        }
-
-        // first matching sequence is enough, finding the best one is not necessary
-        if (mode == MODE_FAST) {
-            break;
-        }
-    }
-    return bestmatch;
-}
-
-
-static int find_next_coarsecandidate(
-        SignatureContext *sc,
-        CoarseSignature *secondstart,
-        CoarseSignature **first,
-        CoarseSignature **second,
-        int start)
-{
-    // go one coarsesignature foreword
-    if (!start) {
-        if ((*second)->next) {
-            *second = (*second)->next;
-        } else if ((*first)->next) {
-            *second = secondstart;
-            *first = (*first)->next;
-        } else {
-            return 0;
-        }
-    }
-
-    while (1) {
-        if (get_jaccarddist(sc, *first, *second))
-            return 1;
-
-        // next signature
-        if ((*second)->next) {
-            *second = (*second)->next;
-        } else if ((*first)->next) {
-            *second = secondstart;
-            *first = (*first)->next;
-        } else {
-            return 0;
-        }
-    }
-}
-
-static int binary_export(
-    AVFilterContext *ctx,
-    StreamContext *sc,
-    const char* filename)
-{
-    FILE* f;
-    FineSignature* fs;
-    CoarseSignature* cs;
-    uint32_t numofsegments = (sc->lastindex + 44)/45;
-    int i, j;
-    PutBitContext buf;
-    // buffer + header + coarsesignatures + finesignature
-    int len = (512 + 6 * 32 + 3*16 + 2 +
-        numofsegments * (4*32 + 1 + 5*243) +
-        sc->lastindex * (2 + 32 + 6*8 + 608)) / 8;
-    uint8_t* buffer = (uint8_t*) calloc(len, sizeof(uint8_t));
-    if (!buffer)
-        return AVERROR(ENOMEM);
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        int err = AVERROR(EINVAL);
-        char buf[128];
-        av_strerror(err, buf, sizeof(buf));
-        av_log(ctx, AV_LOG_ERROR, "cannot open file %s: %s\n", filename, buf);
-        av_freep(&buffer);
-        return err;
-    }
-    init_put_bits(&buf, buffer, len);
-
-    put_bits32(&buf, 1); // NumOfSpatial Regions, only 1 supported
-    put_bits(&buf, 1, 1); // SpatialLocationFlag, always the whole image
-    put_bits32(&buf, 0); // PixelX,1 PixelY,1, 0,0
-    put_bits(&buf, 16, sc->w-1 & 0xFFFF); // PixelX,2
-    put_bits(&buf, 16, sc->h-1 & 0xFFFF); // PixelY,2
-    put_bits32(&buf, 0); // StartFrameOfSpatialRegion
-    put_bits32(&buf, sc->lastindex); // NumOfFrames
-    // hoping num is 1, other values are vague
-    // den/num might be greater than 16 bit, so cutting it
-    put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
-    put_bits(&buf, 1, 1); // MediaTimeFlagOfSpatialRegion
-    put_bits32(&buf, 0); // StartMediaTimeOfSpatialRegion
-    put_bits32(&buf, 0xFFFFFFFF & sc->coarseend->last->pts); // EndMediaTimeOfSpatialRegion
-    put_bits32(&buf, numofsegments); // NumOfSegments
-    // coarsesignatures 
-    for (cs = sc->coarsesiglist; cs; cs = cs->next) {
-        put_bits32(&buf, cs->first->index); // StartFrameOfSegment
-        put_bits32(&buf, cs->last->index); // EndFrameOfSegment
-        put_bits(&buf, 1, 1); // MediaTimeFlagOfSegment
-        put_bits32(&buf, 0xFFFFFFFF & cs->first->pts); // StartMediaTimeOfSegment
-        put_bits32(&buf, 0xFFFFFFFF & cs->last->pts); // EndMediaTimeOfSegment
-        for (i = 0; i < 5; i++) {
-            // put 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
-            for (j = 0; j < 30; j++) {
-                put_bits(&buf, 8, cs->data[i][j]);
-            }
-            put_bits(&buf, 3, cs->data[i][30] >> 5);
-        }
-    }
-    // finesignatures
-    put_bits(&buf, 1, 0); // CompressionFlag, only 0 supported
-    for (fs = sc->finesiglist; fs; fs = fs->next) {
-        put_bits(&buf, 1, 1); // MediaTimeFlagOfFrame
-        put_bits32(&buf, 0xFFFFFFFF & fs->pts); // MediaTimeOfFrame
-        put_bits(&buf, 8, fs->confidence); // FrameConfidence
-        for (i = 0; i < 5; i++) {
-            put_bits(&buf, 8, fs->words[i]); // Words
-        }
-        // framesignature
-        for (i = 0; i < SIGELEM_SIZE/5; i++) {
-            put_bits(&buf, 8, fs->framesig[i]);
-        }
-    }
-
-    avpriv_align_put_bits(&buf);
-    flush_put_bits(&buf);
-    fwrite(buffer, 1, put_bits_count(&buf)/8, f);
-    fclose(f);
-    av_freep(&buffer);
-    return 0;
-}
-
-static int export(
-    AVFilterContext *ctx,
-    StreamContext *sc,
-    int input)
-{
-    SignatureContext* sic = ctx->priv;
-    char filename[1024];
-
-    if (sic->nb_inputs > 1) {
-        // error already handled
-        av_assert0(av_get_frame_filename(filename, sizeof(filename), sic->filename, input) == 0);
-    } else {
-        if (av_strlcpy(filename, sic->filename, sizeof(filename)) >= sizeof(filename))
-            return AVERROR(EINVAL);
-    }
-    return binary_export(ctx, sc, filename);
-}
-
-void match(SignatureContext *sic) {
-    if (sic->mode != MODE_OFF) {
-        // iterate over every pair
-        for (i = 0; i < sic->nb_inputs; i++) {
-            sc = &(sic->streamcontexts[i]);
-            for (j = i+1; j < sic->nb_inputs; j++) {
-                sc2 = &(sic->streamcontexts[j]);
-                match = lookup_signatures(ctx, sic, sc, sc2, sic->mode);
-                if (match.score != 0) {
-                    av_log(ctx, AV_LOG_INFO, "matching of video %d at %f and %d at %f, %d frames matching\n",
-                            i, ((double) match.first->pts * sc->time_base.num) / sc->time_base.den,
-                            j, ((double) match.second->pts * sc2->time_base.num) / sc2->time_base.den,
-                            match.matchframes);
-                    if (match.whole)
-                        av_log(ctx, AV_LOG_INFO, "whole video matching\n");
-                } else {
-                    av_log(ctx, AV_LOG_INFO, "no matching of video %d and %d\n", i, j);
-                }
-            }
-        }
-    }
-}
-
-*/
-
-static int
+StreamContext*
 binary_import(const char* filename)
 {
-    FILE* f;
-    FineSignature* fs;
-    CoarseSignature* cs;
-    uint32_t numofsegments = (sc->lastindex + 44)/45;
-    unsigned int i, j, rResult;
+    FILE *f = NULL;
+    unsigned int rResult = 0, fileLength = 0, paddedLength = 0;
+    uint8_t *buffer = NULL;
 
-	SignatureContext *sc = NULL;
-
+    StreamContext *sc = (StreamContext*) calloc(1, sizeof(StreamContext));
+    Assert(sc);
+    memset(sc, 0, sizeof(StreamContext));
 
     f = fopen(filename, "rb");
     if (!f) {
@@ -586,179 +27,250 @@ binary_import(const char* filename)
 		exit(1);
     }
 
+
     // We get to total file length
     fseek(f, 0, SEEK_END);
-    unsigned int fileLength = ftell(f);
+    fileLength = ftell(f);
+    LoggedAssert(fileLength > 0, "Input file is empty");
     fseek(f, 0, SEEK_SET);
 
+    // Cast to float is necessary to avoid int division
+    paddedLength = ceil(fileLength / (float) AV_INPUT_BUFFER_PADDING_SIZE)*\
+                   AV_INPUT_BUFFER_PADDING_SIZE;
+    buffer = (uint8_t*) calloc(1, paddedLength);
+    LoggedAssert(buffer, "Could not allocate memory buffer");
 
-    // Read number of spatial regions, only 1 supported
-    // read exactly 32 bits from a bitstream.
+    // Read entire file into memory
+    rResult = fread(buffer, 1, fileLength, f);
+    Assert(rResult == fileLength);
+    // Remove FILE pointer from memory once we're done
+    fclose(f);
 
-    uint32_t numOfSpatialRegions;
-  	rResult = fread (&numOfSpatialRegions, 1, sizeof(uint32_t), f);
-	Assert(rResult == 1);
-    Assert(numOfSpatialRegions == 1);
 
-    // bits are inserted fro high mem to low mem
-    // SpatialLocationFlag, always the whole image
-    uint8_t spatialLocationFlag;
-  	rResult = fread (&spatialLocationFlag, 1, sizeof(uint8_t), f);
-	Assert(rResult == 1);
-	spatialLocationFlag &= 0x8000;
+    GetBitContext bitContext = { 0 };
+    init_get_bits(&bitContext, buffer, paddedLength);
 
-    // PixelX PixelY, should be 0,0
-    uint16_t startPixelX, startPixelY;
-  	rResult = fread (&startPixelX, 1, sizeof(uint16_t), f);
-	Assert(rResult == 1);
-  	rResult = fread (&startPixelY, 1, sizeof(uint16_t), f);
-	Assert(rResult == 1);
+    // libavcodec
+
+    // Skip the following data:
+    // - NumOfSpatial Regions: (32 bits) only 1 supported
+    // - SpatialLocationFlag: (1 bit) always the whole image
+    // - PixelX_1: (16 bits) always 0
+    // - PixelY_1: (16 bits) always 0
+    skip_bits(&bitContext, 32 + 1 + 16*2);
+
 
 	// width - 1, and height - 1
-    uint16_t width, height;
-  	rResult = fread (&width, 1, sizeof(uint16_t), f);
-	Assert(rResult == 1);
-    width += 1;
-  	rResult = fread (&height, 1, sizeof(uint16_t), f);
-	Assert(rResult == 1);
-    height += 1;
+    // PixelX_2: (16 bits) is width - 1
+    // PixelY_2: (16 bits) is height - 1
+    sc->w = get_bits(&bitContext, 16);
+    sc->h = get_bits(&bitContext, 16);
+    ++sc->w;
+    ++sc->h;
 
-    // StartFrameOfSpatialRegion, usually 0
-    uint32_t startFrameOfSpatialRegion;
-  	rResult = fread (&startFrameOfSpatialRegion, 1, sizeof(uint32_t), f);
-	Assert(rResult == 1);
-
+    // StartFrameOfSpatialRegion, always 0
+    skip_bits(&bitContext, 32);
 
     // NumOfFrames
-    uint32_t numOfFrames;
-  	rResult = fread (&numOfFrames, 1, sizeof(uint32_t), f);
-	Assert(rResult == 1);
+    sc->lastindex = get_bits(&bitContext, 32);
 
-
+    // sc->time_base.den / sc->time_base.num
     // hoping num is 1, other values are vague
     // den/num might be greater than 16 bit, so cutting it
-    //put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num)); // MediaTimeUnit
-	uint16_t mediaTimeUnit;
-    rResult = fread(&mediaTimeUnit, 1, sizeof(uint16_t), f);
-    Assert(rResult == 1);
+    //put_bits(&buf, 16, 0xFFFF & (sc->time_base.den / sc->time_base.num));
+    // MediaTimeUnit
 
+    sc->time_base.den = get_bits(&bitContext, 16);
+	sc->time_base.num = 1;
 
+    // Skip the following data
+    // - MediaTimeFlagOfSpatialRegion: (1 bit) always 1
+    // - StartMediaTimeOfSpatialRegion: (32 bits) always 0
+    skip_bits(&bitContext, 1 + 32);
 
-    // MediaTimeFlagOfSpatialRegion
-    uint8_t mediaTimeFlagOfSpatialRegion;
-    rResult = fread(&mediaTimeFlagOfSpatialRegion, 1, sizeof(uint8_t), f);
-    Assert(rResult == 1);
-    mediaTimeFlagOfSpatialRegion &= 0x8000;
-
-    // StartMediaTimeOfSpatialRegion, usually 0
-    uint32_t startMediaTimeOfSpatialRegion;
-    rResult = fread(&mediaTimeFlagOfSpatialRegion, 1, sizeof(uint32_t), f);
-    Assert(rResult == 1);
-
-    // EndMediaTimeOfSpatialRegion, sc->coarseend->last->pts
-    uint32_t endMediaTimeOfSpatialRegion;
-    rResult = fread(&endMediaTimeOfSpatialRegion, 1, sizeof(uint32_t), f);
-    Assert(rResult == 1);
-
-
-
-    // NumOfSegments
-    uint32_t numOfSegments;
-    rResult = fread(&numOfFrames, 1, sizeof(uint32_t), f);
-    Assert(rResult == 1);
+    // EndMediaTimeOfSpatialRegion
+    uint64_t lastCoarsePts = get_bits(&bitContext, 32);
 
     // Coarse signatures
-    for (uint32_t i = 0; i < numOfSegments; ++i) {
-		CoarseSignature *cSign = calloc(1, sizeof(CoarseSignature));
+    // numOfSegments = number of coarse signatures
+    unsigned int numOfSegments = get_bits(&bitContext, 32);
+
+	sc->coarsesiglist = (CoarseSignature*) calloc(numOfSegments,\
+            sizeof(CoarseSignature));
+	BoundedCoarseSignature *bCoarseList = (BoundedCoarseSignature*)\
+        calloc(numOfSegments, sizeof(CoarseSignature));
+
+    LoggedAssert(sc->coarsesiglist, "Failed to create coarse signature list");
+    LoggedAssert(bCoarseList, "Failed to create bounded "\
+            "coarse signature list");
+
+    memset(sc->coarsesiglist, 0, numOfSegments*sizeof(CoarseSignature));
+    memset(bCoarseList, 0, numOfSegments*sizeof(BoundedCoarseSignature));
+
+    for (unsigned int i = 0; i < numOfSegments; ++i) {
+        BoundedCoarseSignature *bCs = &bCoarseList[i];
+        bCs->cSign = &sc->coarsesiglist[i];
+
+        if (i < numOfSegments - 1)
+            bCs->cSign->next = &sc->coarsesiglist[i + 1];
 
         // each coarse signature is a VSVideoSegment
 
-        // StartFrameOfSegment 32 bits
-        uint32_t startFrameOfSegment;
-        rResult = fread(&startFrameOfSegment, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
+        // StartFrameOfSegment
+        bCs->firstIndex = get_bits(&bitContext, 32);
+        // EndFrameOfSegment
+        bCs->lastIndex = get_bits(&bitContext, 32);
 
-        // EndFrameOfSegment 32 bits
-        uint32_t endFrameOfSegment;
-        rResult = fread(&endFrameOfSegment, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
+        // MediaTimeFlagOfSegment 1 bit, always 1
+        skip_bits(&bitContext, 1);
 
-        // MediaTimeFlagOfSegment 1 bit
-        uint8_t mediaTimeFlagOfSegment;
-        rResult = fread(&mediaTimeFlagOfSegment, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
-        mediaTimeFlagOfSegment &= 0x8000;
-
-
+        // Fine signature pts
         // StartMediaTimeOfSegment 32 bits
-        uint32_t startMediaTimeOfSegment;
-        rResult = fread(&startMediaTimeOfSegment, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
-
+        bCs->firstPts = get_bits(&bitContext, 32);
         // EndMediaTimeOfSegment 32 bits
-        uint32_t endMediaTimeOfSegment;
-        rResult = fread(&endMediaTimeOfSegment, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
+        bCs->lastPts = get_bits(&bitContext, 32);
 
-		uint8_t *data = (uint8_t*) calloc(31, sizeof(uint8_t));
+
 		// Bag of words
-        for (i = 0; i < 5; i++) {
+        for (unsigned int i = 0; i < 5; ++i) {
             // read 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
-            rResult = fread(&data[i][0], 31, sizeof(uint8_t), f);
+            rResult = fread(&bCs->cSign->data[i][0], sizeof(uint8_t), 31, f);
+
+            for (unsigned int j = 0; j < 30; ++j) {
+                // 30*8 bits = 30 bytes
+                bCs->cSign->data[i][j] = get_bits(&bitContext, 8);
+            }
             Assert(rResult == 31);
-            data[i][30] = data[i][30] << 5;
+            bCs->cSign->data[i][30] = get_bits(&bitContext, 3) << 5;
         }
     }
-
+    sc->coarseend = &sc->coarsesiglist[numOfSegments-1];
 
     // Finesignatures
     // CompressionFlag, only 0 supported
-    uint32_t compressionFlag;
-    rResult = fread(&compressionFlag, 1, sizeof(uint8_t), f);
-    Assert(rResult == 1);
-    compressionFlag &= 0x8000;
-    Assert(compressionFlag == 0);
-
-    // Remaining bytes should be all fine signatures
-
-    while (!feof(f)) {
-        uint32_t mediaTimeFlagOfFrame;
-        rResult = fread(&mediaTimeFlagOfFrame, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
-        mediaTimeFlagOfFrame &= 0x8000;
-        Assert(mediaTimeFlagOfFrame == 1);
-
-        uint32_t mediaTimeOfFrame;
-        rResult = fread(&mediaTimeOfFrame, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
-
-        uint32_t frameConfidence;
-        rResult = fread(&frameConfidence, 1, sizeof(uint32_t), f);
-        Assert(rResult == 1);
+    skip_bits(&bitContext, 1);
 
 
-        uint8_t *words = (uint8_t*) calloc(5, sizeof(uint8_t));
-        rResult = fread(words, 5, sizeof(uint8_t), f);
-        Assert(rResult == 5);
+    sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
+            sizeof(FineSignature));
+    memset(sc->finesiglist, 0, sc->lastindex*sizeof(FineSignature));
+
+    // Load fine signatures from file
+    for (unsigned int i = 0; i < sc->lastindex; ++i) {
+        FineSignature *fs = &sc->finesiglist[i];
+
+        // MediaTimeFlagOfFrame always 1
+        skip_bits(&bitContext, 1);
+
+        // MediaTimeOfFrame (PTS)
+        fs->pts = 0xFFFFFFFF & get_bits(&bitContext, 32);
+
+        // FrameConfidence
+        fs->confidence = get_bits(&bitContext, 8);
+
+        // words
+        for (unsigned int l = 0; l < 5; l++) {
+            fs->words[l] = get_bits(&bitContext, 8);
+        }
+
+        /* framesignature */
+        for (unsigned int l = 0; l < SIGELEM_SIZE/5; l++) {
+            fs->framesig[l] = get_bits(&bitContext, 8);
+        }
+    };
+
+    // Sort by frame time (pts)
+    qsort(sc->finesiglist, sc->lastindex, sizeof(FineSignature),\
+            fineSignatureCmp);
 
 
-        uint8_t *frameSignatures = (uint8_t*) calloc(SIGELEM_SIZE/5,\
-                sizeof(uint8_t));
-        rResult = fread(frameSignatures, SIGELEM_SIZE/5, sizeof(uint8_t), f);
-        Assert(rResult == 5);
+    for (unsigned int i = 0; i < sc->lastindex; ++i) {
+        FineSignature *fs = &sc->finesiglist[i];
+        // Building fine signature list
+        // First element prev should be NULL
+        // Last element next should be NULL
+        if (i < sc->lastindex - 1) {
+            if (i == 0) {
+                fs[0].next = &fs[1];
+            } else {
+                fs[i].next = &fs[i+1];
+                fs[i].prev = &fs[i-1];
+            }
+        } else {
+                fs[i].next = &fs[i+1];
+                fs[i+1].prev = &fs[i];
+        }
+    }
 
+    // Assign FineSignatures to CoarseSignature s
+    for (unsigned int i = 0; i < numOfSegments; ++i) {
+        BoundedCoarseSignature *bCs = &bCoarseList[i];
+        // O = n^2 probably it can be done faster
+        for (unsigned int j = 0; j < sc->lastindex; ++j) {
+            FineSignature *fs = &sc->finesiglist[j];
+            if (fs->pts >= bCs->firstIndex && fs->pts <= bCs->lastIndex) {
+                if (bCs->cSign->first) {
+                    if (bCs->cSign->first->pts > fs->pts)
+                        bCs->cSign->first = fs;
+                } else {
+                    bCs->cSign->first = fs;
+                }
+            }
+
+            if (fs->pts >= bCs->firstIndex && fs->pts <= bCs->lastIndex) {
+                if (bCs->cSign->last) {
+                    if (bCs->cSign->last->pts > fs->pts)
+                        bCs->cSign->last = fs;
+                } else {
+                    bCs->cSign->last = fs;
+                }
+            }
+        }
     };
 
 
-    fclose(f);
-    return 0;
+    free(bCoarseList);
+    free(buffer);
+
+    return sc;
 }
 
-int main() {
+
+int
+main(int argc, char **argv) {
+    StreamContext *a, *b;
+    MatchingInfo result = {0};
+	struct arguments options;
+
     slog_init("logfile", "slog.cfg", 10, 1);
-    slog(0, SLOG_LIVE, "Test message with level 0");
-    slog(1, SLOG_INFO, "Test message with level 0");
-    slog(2, SLOG_WARN, "Test message with level 0");
+	options = parseArguments(argc, argv);
+
+
+	SignatureContext sigContext = {
+        .class = NULL,
+        .mode = MODE_FULL,
+        .nb_inputs = 1,
+        .filename = "",
+        .thworddist = 0,
+        .thcomposdist = 0,
+        .thl1 = 0,
+        .thdi = 0,
+        .thit = 0
+    };
+
+
+    a = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
+    b = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
+
+
+    //static MatchingInfo
+	//lookup_signatures(
+    //SignatureContext *sc,
+    //StreamContext *first,
+    //StreamContext *second,
+    //int mode)
+    //result = lookup_signatures(signatureContext, streaContext1, streamContext2, mode);
+    result = lookup_signatures(&sigContext, a, b, sigContext.mode);
 
     return 0;
 }

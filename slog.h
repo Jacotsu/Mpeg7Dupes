@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- *  
+ *
  *  Copyleft (C) 2015 - 2018  Sun Dro (a.k.a. kala13x)
  *  Copyleft (C) 2017  George G. Gkasdrogkas (a.k.a. GeorgeGkas)
  *
@@ -61,11 +61,11 @@ extern "C" {
 
 #define LVL1(x) #x
 #define LVL2(x) LVL1(x)
-#define SOURCE_THROW_LOCATION "<"__FILE__":"LVL2(__LINE__)"> -- "
+#define SOURCE_THROW_LOCATION "<" __FILE__ ":" LVL2(__LINE__) "> -- "
 
-/* 
- * Define macros to allow us get further informations 
- * on the corresponding erros. These macros used as wrappers 
+/*
+ * Define macros to allow us get further informations
+ * on the corresponding erros. These macros used as wrappers
  * for slog() function.
  */
 #define slog_none(LEVEL, ...) \
@@ -109,8 +109,8 @@ typedef struct {
 
 /* Date variables */
 typedef struct {
-    int year; 
-    int mon; 
+    int year;
+    int mon;
     int day;
     int hour;
     int min;
