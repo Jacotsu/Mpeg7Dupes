@@ -2,7 +2,7 @@ LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
 INCLUDES = -I /usr/include/x86_64-linux-gnu
 CFLAGS = -Wall -Wextra
 CRELEASEFLAGS = -O2
-CDEBUGFLAGS = -g
+CDEBUGFLAGS = -g3
 
 BUILD_DIR = build
 BIN_DIR = bin
