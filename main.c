@@ -199,10 +199,10 @@ binary_import(const char* filename)
             fs->prev = NULL;
         } else if (i == sc->lastindex - 1) {
             fs->next = NULL;
-            fs->prev = &fs[i-1];
+            fs->prev = &fs[-1];
         } else {
-            fs->next = &fs[i + 1];
-            fs->prev = &fs[i - 1];
+            fs->next = &fs[1];
+            fs->prev = &fs[-1];
         }
 
         slog_debug(6, "pts: %010llu\tconfidence: %03hhu\tnext: %10p"\
