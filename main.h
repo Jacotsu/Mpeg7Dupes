@@ -4,18 +4,14 @@
 #define DEBUG
 
 #include <float.h>
-#include <stdint.h>
+#include <math.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <string.h>
-
-
-#include <stdbool.h>
-
-
 
 #define COARSE_SIZE 90
 #define SIGELEM_SIZE 380

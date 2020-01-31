@@ -3,9 +3,11 @@
 
 int
 fineSignatureCmp(const void* p1, const void* p2) {
-    if (((FineSignature*) p1)->pts <= ((FineSignature*) p2)->pts) return -1;
-    if (((FineSignature*) p1)->pts == ((FineSignature*) p2)->pts) return 0;
-    if (((FineSignature*) p1)->pts >= ((FineSignature*) p2)->pts) return -1;
+    FineSignature *a = (FineSignature*) p1;
+    FineSignature *b = (FineSignature*) p2;
+    if (a->pts < b->pts) return -1;
+    if (a->pts == b->pts) return 0;
+    if (a->pts > b->pts) return 1;
 
     LoggedAssert(0, "Fine signature compare didn't return a valid value");
 };
@@ -14,19 +16,19 @@ StreamContext*
 binary_import(const char* filename)
 {
     FILE *f = NULL;
-    unsigned int rResult = 0, fileLength = 0, paddedLength = 0;
+    unsigned int rResult = 0, fileLength = 0, paddedLength = 0,\
+        numOfSegments = 0;
     uint8_t *buffer = NULL;
+    StreamContext *sc = NULL;
+    GetBitContext bitContext = { 0 };
 
-    StreamContext *sc = (StreamContext*) calloc(1, sizeof(StreamContext));
+    slog_debug(0, "Loading signature from: %s", filename);
+
+    sc = (StreamContext*) calloc(1, sizeof(StreamContext));
     Assert(sc);
-    memset(sc, 0, sizeof(StreamContext));
 
     f = fopen(filename, "rb");
-    if (!f) {
-        slog_error(0, "Can't open %s", filename);
-		exit(1);
-    }
-
+    LoggedAssert(f, "Can't open %s", filename);
 
     // We get to total file length
     fseek(f, 0, SEEK_END);
@@ -37,19 +39,16 @@ binary_import(const char* filename)
     // Cast to float is necessary to avoid int division
     paddedLength = ceil(fileLength / (float) AV_INPUT_BUFFER_PADDING_SIZE)*\
                    AV_INPUT_BUFFER_PADDING_SIZE;
-    buffer = (uint8_t*) calloc(1, paddedLength);
+    buffer = (uint8_t*) calloc(paddedLength, sizeof(uint8_t));
     LoggedAssert(buffer, "Could not allocate memory buffer");
 
     // Read entire file into memory
-    rResult = fread(buffer, 1, fileLength, f);
+    rResult = fread(buffer, sizeof(uint8_t), fileLength, f);
     Assert(rResult == fileLength);
     // Remove FILE pointer from memory once we're done
     fclose(f);
 
-
-    GetBitContext bitContext = { 0 };
     init_get_bits(&bitContext, buffer, paddedLength);
-
     // libavcodec
 
     // Skip the following data:
@@ -89,24 +88,26 @@ binary_import(const char* filename)
     skip_bits(&bitContext, 1 + 32);
 
     // EndMediaTimeOfSpatialRegion
-    uint64_t lastCoarsePts = get_bits(&bitContext, 32);
+    //uint64_t lastCoarsePts = get_bits(&bitContext, 32);
+    skip_bits(&bitContext, 32);
 
     // Coarse signatures
     // numOfSegments = number of coarse signatures
-    unsigned int numOfSegments = get_bits(&bitContext, 32);
+    numOfSegments = get_bits(&bitContext, 32);
 
 	sc->coarsesiglist = (CoarseSignature*) calloc(numOfSegments,\
             sizeof(CoarseSignature));
+
 	BoundedCoarseSignature *bCoarseList = (BoundedCoarseSignature*)\
-        calloc(numOfSegments, sizeof(CoarseSignature));
+        calloc(numOfSegments, sizeof(BoundedCoarseSignature));
 
     LoggedAssert(sc->coarsesiglist, "Failed to create coarse signature list");
     LoggedAssert(bCoarseList, "Failed to create bounded "\
             "coarse signature list");
 
-    memset(sc->coarsesiglist, 0, numOfSegments*sizeof(CoarseSignature));
-    memset(bCoarseList, 0, numOfSegments*sizeof(BoundedCoarseSignature));
 
+    // CoarseSignature loading
+    slog_debug(6, "Loading coarse signatures");
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         bCs->cSign = &sc->coarsesiglist[i];
@@ -153,9 +154,11 @@ binary_import(const char* filename)
 
     sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
             sizeof(FineSignature));
-    memset(sc->finesiglist, 0, sc->lastindex*sizeof(FineSignature));
+    LoggedAssert(sc->finesiglist,\
+        "Could not allocate FineSignatures memory buffer");
 
     // Load fine signatures from file
+    slog_debug(6, "Loading fine signatures");
     for (unsigned int i = 0; i < sc->lastindex; ++i) {
         FineSignature *fs = &sc->finesiglist[i];
 
@@ -173,7 +176,7 @@ binary_import(const char* filename)
             fs->words[l] = get_bits(&bitContext, 8);
         }
 
-        /* framesignature */
+        // framesignature
         for (unsigned int l = 0; l < SIGELEM_SIZE/5; l++) {
             fs->framesig[l] = get_bits(&bitContext, 8);
         }
@@ -184,22 +187,26 @@ binary_import(const char* filename)
             fineSignatureCmp);
 
 
+    // Creating FineSignature linked list
+    // CAN CAUSE MEMORY CORRUPTION
     for (unsigned int i = 0; i < sc->lastindex; ++i) {
         FineSignature *fs = &sc->finesiglist[i];
         // Building fine signature list
         // First element prev should be NULL
         // Last element next should be NULL
-        if (i < sc->lastindex - 1) {
-            if (i == 0) {
-                fs[0].next = &fs[1];
-            } else {
-                fs[i].next = &fs[i+1];
-                fs[i].prev = &fs[i-1];
-            }
+        if (i == 0) {
+            fs->next = &fs[1];
+            fs->prev = NULL;
+        } else if (i == sc->lastindex - 1) {
+            fs->next = NULL;
+            fs->prev = &fs[i-1];
         } else {
-                fs[i].next = &fs[i+1];
-                fs[i+1].prev = &fs[i];
+            fs->next = &fs[i + 1];
+            fs->prev = &fs[i - 1];
         }
+
+        slog_debug(6, "pts: %010llu\tconfidence: %03hhu\tnext: %10p"\
+            "\tprev: %10p", fs->pts, fs->confidence, fs->next, fs->prev);
     }
 
     // Assign FineSignatures to CoarseSignature s
@@ -208,6 +215,10 @@ binary_import(const char* filename)
         // O = n^2 probably it can be done faster
         for (unsigned int j = 0; j < sc->lastindex; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
+
+            /*slog_debug(6, "Fine signature pts: %d \t "\
+                "Bounded coarse signature: (%d, %d)", fs->pts,\
+                 bCs->firstIndex, bCs->lastIndex);*/
             if (fs->pts >= bCs->firstIndex && fs->pts <= bCs->lastIndex) {
                 if (bCs->cSign->first) {
                     if (bCs->cSign->first->pts > fs->pts)
@@ -215,12 +226,9 @@ binary_import(const char* filename)
                 } else {
                     bCs->cSign->first = fs;
                 }
-            }
-
-            if (fs->pts >= bCs->firstIndex && fs->pts <= bCs->lastIndex) {
                 if (bCs->cSign->last) {
-                    if (bCs->cSign->last->pts > fs->pts)
-                        bCs->cSign->last = fs;
+                        if (bCs->cSign->last->pts < fs->pts)
+                            bCs->cSign->last = fs;
                 } else {
                     bCs->cSign->last = fs;
                 }
@@ -228,21 +236,29 @@ binary_import(const char* filename)
         }
     };
 
-
     free(bCoarseList);
     free(buffer);
-
     return sc;
 }
 
 
 int
 main(int argc, char **argv) {
-    StreamContext *a, *b;
+    StreamContext *a, *b, *c;
     MatchingInfo result = {0};
 	struct arguments options;
-
-    slog_init("logfile", "slog.cfg", 10, 1);
+    // 0    panic
+    // 1    fatal
+    // 2    error
+    // 3    warn
+    // 4    info
+    // 5    live
+    // 6    debug
+    #ifdef DEBUG
+        slog_init("logfile", "slog.cfg", 6, 1);
+    #else
+        slog_init("logfile", "slog.cfg", 5, 1);
+    #endif
 	options = parseArguments(argc, argv);
 
 
@@ -251,17 +267,17 @@ main(int argc, char **argv) {
         .mode = MODE_FULL,
         .nb_inputs = 1,
         .filename = "",
-        .thworddist = 0,
-        .thcomposdist = 0,
-        .thl1 = 0,
+        .thworddist = 9000,
+        .thcomposdist = 60000,
+        .thl1 = 116,
         .thdi = 0,
-        .thit = 0
+        .thit = 1
     };
 
 
     a = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
     b = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
-
+    //c = binary_import("_0.webm.sig");
 
     //static MatchingInfo
 	//lookup_signatures(
@@ -271,6 +287,12 @@ main(int argc, char **argv) {
     //int mode)
     //result = lookup_signatures(signatureContext, streaContext1, streamContext2, mode);
     result = lookup_signatures(&sigContext, a, b, sigContext.mode);
+    slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
+            result.score, result.offset, result.matchframes, result.whole);
+
+    result = lookup_signatures(&sigContext, a, c, sigContext.mode);
+    slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
+            result.score, result.offset, result.matchframes, result.whole);
 
     return 0;
 }
