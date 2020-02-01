@@ -1,5 +1,37 @@
 #include "main.h"
 
+void printFineSigList(FineSignature *list) {
+    slog_debug(6,"Fine signature at %p", list);
+    slog_debug(6,"Pts: %lu\tIndex %d \tConfidence: %hhu", list->pts, list->index,
+        list->confidence);
+}
+
+void printCoarseSigList(CoarseSignature *list) {
+    for (CoarseSignature *j = list; j->next ; j = j->next) {
+        if (j->next->next) {
+            slog_debug(6,"\u2523\u2533 Coarse signature at %p", j);
+            slog_debug(6,"\u2503\u2517\u2578 Fine signatures "\
+                "bounds: %p %p", list->first, list->last);
+        } else {
+            slog_debug(6,"\u2517\u2533 Coarse signature at %p", j);
+            slog_debug(6," \u2517\u2578 Fine signatures "\
+                "bounds kek: %p %p", list->first, list->last);
+        }
+        for (FineSignature *i = list->first; i != list->last; i = i->next)
+            printFineSigList(i);
+    }
+}
+
+void printStreamContext(StreamContext* sc) {
+    slog_debug(6,"\u250F Time base: %d/%d", sc->time_base.num,sc->time_base.den);
+    slog_debug(6,"\u2523 Width: %d\tHeight: %d",sc->w,sc->h);
+    slog_debug(6,"\u2523 Overflow protection: %d", sc->divide);
+    slog_debug(6,"\u2523 Fine signatures list: %p\tCoarse signature list: %p",\
+        sc->finesiglist, sc->coarsesiglist);
+    slog_debug(6,"\u2523 Last index: %d", sc->lastindex);
+    slog_debug(6,"\u2523 Signatures", sc->lastindex);
+    printCoarseSigList(sc->coarsesiglist);
+}
 
 int
 fineSignatureCmp(const void* p1, const void* p2) {
@@ -90,8 +122,7 @@ binary_import(const char* filename)
     skip_bits(&bitContext, 1 + 32);
 
     // EndMediaTimeOfSpatialRegion
-    //uint64_t lastCoarsePts = get_bits(&bitContext, 32);
-    skip_bits(&bitContext, 32);
+    uint64_t lastCoarsePts = get_bits(&bitContext, 32);
 
     // Coarse signatures
     // numOfSegments = number of coarse signatures
@@ -214,17 +245,28 @@ binary_import(const char* filename)
             "\tprev: %10p", fs->pts, fs->confidence, fs->next, fs->prev);
     }
 
+    int counter = 0;
+    // Fine signature ranges don't overlap
+    // so by keeping the last used fine signature index
+    // we save a few cycles
+    unsigned int lastUsedFineSigIndex;
     // Assign FineSignatures to CoarseSignature s
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         // O = n^2 probably it can be done faster
-        for (unsigned int j = 0; j < sc->lastindex; ++j) {
-            FineSignature *fs = &sc->finesiglist[j];
+        for (;lastUsedFineSigIndex < sc->lastindex; ++lastUsedFineSigIndex) {
+            FineSignature *fs = &sc->finesiglist[lastUsedFineSigIndex];
 
+            // THIS CODE IS WRONG only 6 fine signatures get processed
+            printf("%010lu %010lu %010lu\n", fs->pts, bCs->firstPts, bCs->lastPts);
             if (fs->pts >= bCs->firstPts && fs->pts <= bCs->lastPts) {
+                ++counter;
+
+                /*
                 if (bCs->cSign->first) {
-                    if (bCs->cSign->first->pts > fs->pts)
+                    if (bCs->cSign->first->pts > fs->pts) {
                         bCs->cSign->first = fs;
+                    }
                 } else {
                     bCs->cSign->first = fs;
                 }
@@ -233,11 +275,14 @@ binary_import(const char* filename)
                             bCs->cSign->last = fs;
                 } else {
                     bCs->cSign->last = fs;
-                }
+                }*/
             }
-
         }
     };
+
+    printf("%d\n", counter);
+    //sc->coarseend->last->pts = lastCoarsePts;
+    //sc->coarseend->first->pts = 0;
 
     free(bCoarseList);
     free(buffer);
@@ -280,6 +325,7 @@ main(int argc, char **argv) {
 
     a = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
     b = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
+    printStreamContext(a);
     //c = binary_import("_0.webm.sig");
 
     //static MatchingInfo
@@ -289,9 +335,9 @@ main(int argc, char **argv) {
     //StreamContext *second,
     //int mode)
     //result = lookup_signatures(signatureContext, streaContext1, streamContext2, mode);
-    result = lookup_signatures(&sigContext, a, b, sigContext.mode);
-    slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
-            result.score, result.offset, result.matchframes, result.whole);
+    //result = lookup_signatures(&sigContext, a, b, sigContext.mode);
+    //slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
+    //        result.score, result.offset, result.matchframes, result.whole);
 
     //result = lookup_signatures(&sigContext, a, c, sigContext.mode);
     //slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
