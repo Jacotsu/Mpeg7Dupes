@@ -1,6 +1,6 @@
 LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
-INCLUDES = -I /usr/include/x86_64-linux-gnu
-CFLAGS = -Wall -Wextra
+INCLUDES = -I src/includes -I /usr/include/x86_64-linux-gnu
+CFLAGS = -Wall -Wextra -std=c11
 CRELEASEFLAGS = -O2
 CDEBUGFLAGS = -g3
 
@@ -8,8 +8,8 @@ BUILD_DIR = build
 BIN_DIR = bin
 
 # Should be equivalent to your list of C files, if you don't build selectively
-SRCS=$(wildcard *.c)
-HEADERS=$(wildcard *.h)
+SRCS=$(wildcard src/*.c)
+HEADERS=$(wildcard src/includes/*.h)
 OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:.c=.o))
 
 

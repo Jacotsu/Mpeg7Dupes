@@ -1,17 +1,5 @@
-#ifndef MAIN
-#define MAIN
-
-#define DEBUG
-
-#include <float.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <string.h>
+#ifndef UTILS
+#define UTILS
 
 #define COARSE_SIZE 90
 #define SIGELEM_SIZE 380
@@ -25,18 +13,14 @@
 #define STATUS_END_REACHED 1
 #define STATUS_BEGIN_REACHED 2
 
+
+#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
+
 // ffmpeg downloaded headers
-#include "get_bits.h"
 #include "signature.h"
 
 // custom headers
 #include "slog.h"
-#include "customAssert.h"
-#include "ArgumentParsing.h"
-
-
-
-#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
 
 typedef struct BoundedCoarseSignature {
@@ -48,8 +32,17 @@ typedef struct BoundedCoarseSignature {
 } BoundedCoarseSignature;
 
 
-StreamContext* binary_import(const char*);
 
-int fineSignatureCmp(const void*, const void*);
+void
+printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse);
+
+void
+printCoarseSigList(CoarseSignature *list);
+
+void
+printStreamContext(StreamContext *sc);
+
+int
+fineSignatureCmp(const void *p1, const void *p2);
 
 #endif

@@ -29,6 +29,7 @@
 #define FF_QSCALE_TYPE_VP56  3
 
 #include "signature.h"
+#include "customAssert.h"
 
 #define HOUGH_MAX_OFFSET 90
 #define MAX_FRAMERATE 60
@@ -313,13 +314,11 @@ get_matching_parameters(
                 if (hmax < hspace[i][j].score) {
                     if (c == NULL) {
                         c = (MatchingInfo*) malloc(sizeof(MatchingInfo));
-                        if (!c)
-                            slog_error(2, "Could not allocate memory");
+                        LoggedAssert(c, "Could not allocate memory");
                         cands = c;
                     } else {
                         c->next = (MatchingInfo*) malloc(sizeof(MatchingInfo));
-                        if (!c->next)
-                            slog_error(2, "Could not allocate memory");
+                        LoggedAssert(c->next, "Could not allocate memory");
                         c = c->next;
                     }
                     c->framerateratio = (i+1.0) / 30;
@@ -338,9 +337,9 @@ get_matching_parameters(
         }
     }
     for (i = 0; i < MAX_FRAMERATE; i++) {
-        free(&hspace[i]);
+        free(hspace[i]);
     }
-    free(&hspace);
+    free(hspace);
     return cands;
 }
 

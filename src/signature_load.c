@@ -1,70 +1,5 @@
-#include "main.h"
+#include "signature_load.h"
 
-void printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse) {
-
-    for (FineSignature *i = list; i != end; i = i->next) {
-        if (lastCoarse) {
-            if (i->next != end) {
-                slog_debug(6,"  \u2523\u2501\u2533 Fine signature at %p", i);
-                slog_debug(6,"  \u2503 \u2517\u2501 Pts: %lu\tIndex %d \t"\
-                    "Confidence: %hhu", i->pts, i->index, i->confidence);
-            } else {
-                slog_debug(6,"  \u2517\u2501\u2533 Fine signature at %p", i);
-                slog_debug(6,"    \u2517\u2501 Pts: %lu\tIndex %d \t"\
-                    "Confidence: %hhu", i->pts, i->index, i->confidence);
-            }
-        } else {
-            if (i->next != end) {
-                slog_debug(6,"\u2503 \u2523\u2501\u2533 Fine signature at %p", i);
-                slog_debug(6,"\u2503 \u2503 \u2517\u2501 Pts: %lu\tIndex %d \t"\
-                    "Confidence: %hhu", i->pts, i->index, i->confidence);
-            } else {
-                slog_debug(6,"\u2503 \u2517\u2501\u2533 Fine signature at %p", i);
-                slog_debug(6,"\u2503   \u2517\u2501 Pts: %lu\tIndex %d \t"\
-                    "Confidence: %hhu", i->pts, i->index, i->confidence);
-            }
-        }
-    }
-}
-
-void printCoarseSigList(CoarseSignature *list) {
-    for (CoarseSignature *j = list; j->next ; j = j->next) {
-        if (j->next->next) {
-            slog_debug(6,"\u2523\u2533 Coarse signature at %p", j);
-            slog_debug(6,"\u2503\u2517\u2533\u2578 Fine signatures "\
-                "bounds: %p %p", list->first, list->last);
-            printFineSigList(list->first, list->last, 0);
-        } else {
-            slog_debug(6,"\u2517\u2533 Coarse signature at %p", j);
-            slog_debug(6," \u2517\u2533\u2578 Fine signatures "\
-                "bounds: %p %p", list->first, list->last);
-            printFineSigList(list->first, list->last, 1);
-        }
-    }
-}
-
-void printStreamContext(StreamContext* sc) {
-    slog_debug(6,"\u250F Time base: %d/%d", sc->time_base.num,sc->time_base.den);
-    slog_debug(6,"\u2523 Width: %d\tHeight: %d",sc->w,sc->h);
-    slog_debug(6,"\u2523 Overflow protection: %d", sc->divide);
-    slog_debug(6,"\u2523 Fine signatures list: %p", sc->finesiglist);
-    slog_debug(6,"\u2523 Coarse signature list: %p", sc->coarsesiglist);
-    slog_debug(6,"\u2523 Last index: %d", sc->lastindex);
-    slog_debug(6,"\u2523 Signatures:", sc->lastindex);
-    printCoarseSigList(sc->coarsesiglist);
-}
-
-int
-fineSignatureCmp(const void* p1, const void* p2) {
-    FineSignature *a = (FineSignature*) p1;
-    FineSignature *b = (FineSignature*) p2;
-    if (a->pts == b->pts)
-        return 0;
-    else if (a->pts < b->pts)
-        return -1;
-    else
-        return 1;
-};
 
 StreamContext*
 binary_import(const char* filename)
@@ -103,7 +38,8 @@ binary_import(const char* filename)
     fclose(f);
     f = NULL;
 
-    init_get_bits(&bitContext, buffer, paddedLength);
+    // BE CAREFUL, THE LENGTH IS SPECIFIED IN BITS NOT BYTES
+    init_get_bits(&bitContext, buffer, 8*paddedLength);
     // libavcodec
 
     // Skip the following data:
@@ -268,106 +204,49 @@ binary_import(const char* filename)
             "\tprev: %10p", fs->pts, fs->confidence, fs->next, fs->prev);
     }
 
-    int counter = 0;
-    // Fine signature ranges don't overlap
-    // so by keeping the last used fine signature index
-    // we save a few cycles
+    // Fine signature ranges DO overlap
     unsigned int lastUsedFineSigIndex = 0;
     // Assign FineSignatures to CoarseSignature s
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         // O = n^2 probably it can be done faster
-        for (;lastUsedFineSigIndex < sc->lastindex; ++lastUsedFineSigIndex) {
-            FineSignature *fs = &sc->finesiglist[lastUsedFineSigIndex];
+        for (unsigned int j = 0;sc->finesiglist[j].pts <= bCs->lastPts &&\
+            lastUsedFineSigIndex < sc->lastindex; ++j) {
+            FineSignature *fs = &sc->finesiglist[j];
 
             // THIS CODE IS WRONG only 6 fine signatures get processed
-            printf("%010lu %010lu %010lu\n", fs->pts, bCs->firstPts, bCs->lastPts);
             if (fs->pts >= bCs->firstPts && fs->pts <= bCs->lastPts) {
-                ++counter;
+                // Check if the fragment's pts is inside coarse signature
+                // bounds
 
                 if (bCs->cSign->first) {
-                    if (bCs->cSign->first->pts > fs->pts) {
+                    if (bCs->cSign->first->pts >= fs->pts) {
                         bCs->cSign->first = fs;
                     }
                 } else {
                     bCs->cSign->first = fs;
                 }
                 if (bCs->cSign->last) {
-                        if (bCs->cSign->last->pts < fs->pts)
-                            bCs->cSign->last = fs;
+                    if (bCs->cSign->last->pts <= fs->pts)
+                        bCs->cSign->last = fs;
                 } else {
                     bCs->cSign->last = fs;
                 }
+            printf("%010lu %010lu %010lu\n", fs->pts, bCs->cSign->first->pts,\
+                    bCs->cSign->last->pts);
+            printf("\n");
             }
         }
         // If atleast one is not NULL then the signature is valid
         // otherwise it isn't
-        /*LoggedAssert(bCs->cSign->first || bCs->cSign->last,\
-            "Empty coarse signature");*/
+        LoggedAssert(bCs->cSign->first || bCs->cSign->last,\
+            "Empty coarse signature");
     };
 
-    printf("%d\n", counter);
-    //sc->coarseend->last->pts = lastCoarsePts;
-    //sc->coarseend->first->pts = 0;
+    sc->coarseend->last->pts = lastCoarsePts;
+    sc->coarseend->first->pts = 0;
 
     free(bCoarseList);
     free(buffer);
     return sc;
-}
-
-
-int
-main(int argc, char **argv) {
-    StreamContext *a, *b, *c;
-    MatchingInfo result = {0};
-	struct arguments options;
-    // 0    panic
-    // 1    fatal
-    // 2    error
-    // 3    warn
-    // 4    info
-    // 5    live
-    // 6    debug
-    #ifdef DEBUG
-        slog_init("logfile", "slog.cfg", 6, 1);
-    #else
-        slog_init("logfile", "slog.cfg", 5, 1);
-    #endif
-	options = parseArguments(argc, argv);
-
-
-	SignatureContext sigContext = {
-        .class = NULL,
-        .mode = MODE_FULL,
-        .nb_inputs = 1,
-        .filename = "",
-        .thworddist = 9000,
-        .thcomposdist = 60000,
-        .thl1 = 116,
-        .thdi = 0,
-        .thit = 1
-    };
-
-
-    a = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
-    b = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
-    printStreamContext(a);
-    //c = binary_import("_0.webm.sig");
-
-    //static MatchingInfo
-	//lookup_signatures(
-    //SignatureContext *sc,
-    //StreamContext *first,
-    //StreamContext *second,
-    //int mode)
-    //result = lookup_signatures(signatureContext, streaContext1, streamContext2, mode);
-    result = lookup_signatures(&sigContext, a, b, sigContext.mode);
-    slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
-            result.score, result.offset, result.matchframes, result.whole);
-
-    //result = lookup_signatures(&sigContext, a, c, sigContext.mode);
-    //slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
-    //        result.score, result.offset, result.matchframes, result.whole);
-
-    return 0;
 }

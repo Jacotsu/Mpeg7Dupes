@@ -18,10 +18,9 @@
         slog_fatal(1, "%s:%d:Assertion failed: %s", __FILE__, __LINE__, x);\
         slog_fatal(1, __VA_ARGS__ );\
         exit(1);}
-
 #else
     #define Assert(x)
-    #define LoggedAssert(x, y)
+    #define LoggedAssert(x, ...)
 #endif
 
 #endif
