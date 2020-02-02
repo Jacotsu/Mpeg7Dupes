@@ -33,9 +33,9 @@ debug: buildDirs
 link: ${OBJS}
 	@echo Linking
 ifndef DEBUG
-	$(CC) $^ -o ${BIN_DIR}/mpeg7MatchRelease.elf ${LIBS}
+	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesRelease.elf ${LIBS}
 else
-	$(CC) $^ -o ${BIN_DIR}/mpeg7MatchDebug.elf ${LIBS}
+	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesDebug.elf ${LIBS}
 endif
 
 compile: ${OBJS}
