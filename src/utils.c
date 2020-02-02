@@ -42,7 +42,7 @@ printCoarseSigList(CoarseSignature *list) {
         } else {
             slog_debug(6,"\u2517\u2533 Coarse signature at %p", j);
             slog_debug(6," \u2523\u2501\u2578 Coarse signature bounds: "\
-                "%lu %lu", j->first, j->last);
+                "%lu %lu", j->first->pts, j->last->pts);
             slog_debug(6," \u2517\u2533\u2578 Fine signatures "\
                 "bounds: %p %p", list->first, list->last);
             printFineSigList(list->first, list->last, 1);

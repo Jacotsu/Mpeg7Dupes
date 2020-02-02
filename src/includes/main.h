@@ -2,7 +2,7 @@
 #define MAIN
 
 #define DEBUG
-#ifdef DBUG
+#ifdef DEBUG
 int __DEBUG = 1;
 #else
 int __DEBUG = 0;

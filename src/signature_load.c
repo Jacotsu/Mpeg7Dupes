@@ -205,25 +205,19 @@ binary_import(const char* filename)
     }
 
     // Fine signature ranges DO overlap
-    unsigned int lastUsedFineSigIndex = 0;
     // Assign FineSignatures to CoarseSignature s
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         // O = n^2 probably it can be done faster
-        for (unsigned int j = 0;sc->finesiglist[j].pts <= bCs->lastPts &&\
-            lastUsedFineSigIndex < sc->lastindex; ++j) {
+        for (unsigned int j = 0; sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
 
-            // THIS CODE IS WRONG only 6 fine signatures get processed
+            // THIS CODE IS WRONG
             if (fs->pts >= bCs->firstPts && fs->pts <= bCs->lastPts) {
+                //slog_debug(6, "%d %d %d",bCs->firstPts, fs->pts, bCs->lastPts);
                 // Check if the fragment's pts is inside coarse signature
                 // bounds
-
-                if (bCs->cSign->first) {
-                    if (bCs->cSign->first->pts >= fs->pts) {
-                        bCs->cSign->first = fs;
-                    }
-                } else {
+                if (!bCs->cSign->first) {
                     bCs->cSign->first = fs;
                 }
                 if (bCs->cSign->last) {
@@ -232,9 +226,9 @@ binary_import(const char* filename)
                 } else {
                     bCs->cSign->last = fs;
                 }
-            printf("%010lu %010lu %010lu\n", fs->pts, bCs->cSign->first->pts,\
-                    bCs->cSign->last->pts);
-            printf("\n");
+                slog_debug(6, "[%5d -> %5d - |%5d| - %5d <- %5d]",\
+                    bCs->firstPts, bCs->cSign->first->pts,\
+                    fs->pts, bCs->cSign->last->pts, bCs->lastPts);
             }
         }
         // If atleast one is not NULL then the signature is valid

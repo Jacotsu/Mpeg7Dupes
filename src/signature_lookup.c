@@ -570,7 +570,7 @@ sll_free(MatchingInfo *sll)
     while (sll) {
         tmp = sll;
         sll = sll->next;
-        free(&tmp);
+        free(tmp);
     }
 }
 
