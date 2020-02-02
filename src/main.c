@@ -1,11 +1,14 @@
 #include "main.h"
 #include "utils.h"
 
+struct arguments options;
+
 int
 main(int argc, char **argv) {
-    StreamContext *a, *b;
     MatchingInfo result = {0};
-	struct arguments options;
+
+	options = parseArguments(argc, argv);
+
     // 0    panic
     // 1    fatal
     // 2    error
@@ -13,11 +16,11 @@ main(int argc, char **argv) {
     // 4    info
     // 5    live
     // 6    debug
-    if (__DEBUG)
+    if (__DEBUG || options.verbose)
         slog_init("logfile", "slog.cfg", 6, 1);
     else
         slog_init("logfile", "slog.cfg", 5, 1);
-	options = parseArguments(argc, argv);
+
 
 
 	SignatureContext sigContext = {
@@ -25,18 +28,27 @@ main(int argc, char **argv) {
         .mode = MODE_FULL,
         .nb_inputs = 1,
         .filename = "",
-        .thworddist = 9000,
-        .thcomposdist = 60000,
-        .thl1 = 116,
-        .thdi = 0,
-        .thit = 1
+        .thworddist = options.thD,
+        .thcomposdist = options.thDc,
+        .thl1 = options.thXh,
+        .thdi = options.thDi,
+        .thit = options.thIt
     };
 
 
-    a = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
-    b = binary_import("1234_In_the_name_of_GodCCS_tarrant.webm.sig");
-    printStreamContext(a);
-    //c = binary_import("_0.webm.sig");
+
+    for (unsigned int i = 0; i < options.numberOfPaths; ++i)
+        for(unsigned int j = i; j < options.numberOfPaths; ++j) {
+            StreamContext *sig1 = binary_import(options.filePaths[i]);
+            printStreamContext(sig1);
+            StreamContext *sig2 = binary_import(options.filePaths[j]);
+            printStreamContext(sig2);
+            result = lookup_signatures(&sigContext, sig1, sig2,
+                sigContext.mode);
+            slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
+                result.score, result.offset, result.matchframes, result.whole);
+        }
+
 
     //static MatchingInfo
 	//lookup_signatures(
@@ -45,9 +57,9 @@ main(int argc, char **argv) {
     //StreamContext *second,
     //int mode)
     //result = lookup_signatures(signatureContext, streaContext1, streamContext2, mode);
-    result = lookup_signatures(&sigContext, a, b, sigContext.mode);
+    /*result = lookup_signatures(&sigContext, a, b, sigContext.mode);
     slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
-            result.score, result.offset, result.matchframes, result.whole);
+            result.score, result.offset, result.matchframes, result.whole);*/
 
     //result = lookup_signatures(&sigContext, a, c, sigContext.mode);
     //slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
