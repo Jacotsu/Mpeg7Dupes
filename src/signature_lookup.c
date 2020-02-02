@@ -601,22 +601,22 @@ lookup_signatures(
         return bestmatch; /* no candidate found */
     do {
         slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
-			"frame: %" PRIu32 " and %" PRIu32 "\n",
+			"frame: %" PRIu32 " and %" PRIu32,
             cs->first->index, cs2->first->index);
         /* stage 2: l1-distance and hough-transform */
-		slog_debug(6, "Stage 2: calculate matching parameters\n");
+		slog_debug(6, "Stage 2: calculate matching parameters");
         infos = get_matching_parameters(sc, cs->first, cs2->first);
         for (i = infos; i != NULL; i = i->next) {
             slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
-                PRIu32 ", ratio %f, offset %d\n", i->first->index, \
+                PRIu32 ", ratio %f, offset %d", i->first->index, \
                 i->second->index, i->framerateratio, i->offset);
         }
         /* stage 3: evaluation */
-		slog_debug(6,"Stage 3: evaluate\n");
+		slog_debug(6,"Stage 3: evaluate");
         if (infos) {
             bestmatch = evaluate_parameters(sc, infos, bestmatch, mode);
 			slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
-				PRIu32 ", ratio %f, offset %d, score %d, %d frames matching\n",
+				PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",
                 bestmatch.first->index, bestmatch.second->index,\
 				bestmatch.framerateratio, bestmatch.offset, bestmatch.score, \
 				bestmatch.matchframes);
