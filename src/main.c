@@ -64,7 +64,7 @@ main(int argc, char **argv) {
             result = lookup_signatures(&sigContext, sig1, sig2,
                 sigContext.mode);
 
-            printf("%28s %28s %3d  %5d   %8d   %1d\n",
+            printf("%-46.46s %-46.46s %3d  %5d   %8d   %1d\n",
                 args.filePaths[i], args.filePaths[j],
                 result.score, result.offset,\
                 result.matchframes, result.whole);
