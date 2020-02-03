@@ -10,7 +10,9 @@ BIN_DIR = bin
 # Should be equivalent to your list of C files, if you don't build selectively
 SRCS=$(wildcard src/*.c)
 HEADERS=$(wildcard src/includes/*.h)
-OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:.c=.o))
+#OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:.c=.o))
+OBJS=$(addprefix ${BUILD_DIR}/,$(SRCS:src/%.c=%.o))
+
 
 
 all: release
@@ -28,6 +30,7 @@ release: buildDirs
 .PHONY: debug
 debug: buildDirs
 	@echo Building debug
+	echo ${OBJS}
 	@$(MAKE) $(MAKEFILE) DEBUG="1" link
 
 link: ${OBJS}
@@ -41,7 +44,8 @@ endif
 compile: ${OBJS}
 	@echo Compiling
 
-${BUILD_DIR}/%o:%c
+${BUILD_DIR}/%o:src/%c
+	@echo ${BUILD_DIR}/%o
 	# DO NOT change the options order
 ifndef DEBUG
 	$(CC) -c ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
