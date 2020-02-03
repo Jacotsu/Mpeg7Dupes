@@ -234,12 +234,15 @@ binary_import(const char* filename)
         }
         // If atleast one is not NULL then the signature is valid
         // otherwise it isn't
-        LoggedAssert(bCs->cSign->first || bCs->cSign->last,\
-            "Empty coarse signature");
+        //slog_warn(3, "Empty coarse signature in signature: %s", filename);
+        //LoggedAssert(bCs->cSign->first || bCs->cSign->last,\
+        //   "Empty coarse signature");
     };
-
-    sc->coarseend->last->pts = lastCoarsePts;
-    sc->coarseend->first->pts = 0;
+    // Apparently there can be empty coarse signatures
+    if (sc->coarseend->last)
+        sc->coarseend->last->pts = lastCoarsePts;
+    if (sc->coarseend->first)
+        sc->coarseend->first->pts = 0;
 
     free(bCoarseList);
     free(buffer);
