@@ -11,7 +11,7 @@ binary_import(const char* filename)
     StreamContext *sc = NULL;
     GetBitContext bitContext = { 0 };
 
-    slog_debug(0, "Loading signature from: %s", filename);
+    slog_debug(6, "Loading signature from: %s", filename);
 
     sc = (StreamContext*) calloc(1, sizeof(StreamContext));
     Assert(sc);
