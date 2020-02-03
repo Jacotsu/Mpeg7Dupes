@@ -2,15 +2,15 @@
 #define ARGUMENT_PARSING
 
 
-#include <argp.h>
 #include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <argp.h>
 
 #include "slog.h"
 #include "customAssert.h"
 #include "signature.h"
 
-#include <string.h>
 
 
 
@@ -34,8 +34,15 @@ struct entry {
     int n;
 };
 
+static struct entry dict[] = {
+    {"binary", BINARY},
+    {"xml", XML},
+    {"fast", MODE_FAST},
+    {"full", MODE_FULL},
+};
 
-int number_for_key(char *key);
+
+int numberForKey(char *key);
 
 struct arguments parseArguments(int, char**);
 

@@ -1,13 +1,6 @@
 #ifndef MAIN
 #define MAIN
 
-#define DEBUG
-#ifdef DEBUG
-int __DEBUG = 1;
-#else
-int __DEBUG = 0;
-#endif
-
 
 #include <float.h>
 #include <math.h>
@@ -24,9 +17,11 @@ int __DEBUG = 0;
 #include "signature_load.h"
 
 // custom headers
+#include "debug.h"
 #include "slog.h"
 #include "customAssert.h"
 #include "ArgumentParsing.h"
+#include "utils.h"
 
 
 #endif
