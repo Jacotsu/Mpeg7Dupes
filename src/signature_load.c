@@ -209,7 +209,8 @@ binary_import(const char* filename)
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         // O = n^2 probably it can be done faster
-        for (unsigned int j = 0; sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
+        for (unsigned int j = 0; sc->finesiglist[j].pts <= bCs->lastPts &&\
+                j < sc->lastindex; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
 
             // THIS CODE IS WRONG
