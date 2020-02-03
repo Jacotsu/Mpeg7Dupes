@@ -67,7 +67,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             argp_usage(state);
         } else {
             // First path is executable
-            arguments->numberOfPaths = state->arg_num - numUsedArgs - 1;
+            arguments->numberOfPaths = state->arg_num - numUsedArgs;
             arguments->filePaths = state->argv + state->argc -\
                 arguments->numberOfPaths;
             // Bound checking and sanitization

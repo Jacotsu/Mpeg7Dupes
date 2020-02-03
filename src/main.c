@@ -33,7 +33,6 @@ main(int argc, char **argv) {
     };
 
 
-
     for (unsigned int i = 0; i < args.numberOfPaths; ++i)
         for(unsigned int j = i; j < args.numberOfPaths; ++j) {
             StreamContext *sig1 = binary_import(args.filePaths[i]);
@@ -43,8 +42,12 @@ main(int argc, char **argv) {
 
             result = lookup_signatures(&sigContext, sig1, sig2,
                 sigContext.mode);
-            slog_info(4, "score: %d offset: %d matchframes: %d whole: %d",\
-            result.score, result.offset, result.matchframes, result.whole);
+            slog_info(4, "%20.20s\t%20.20s\t%5.5s\t%6.6s\t"\
+                    "%11.11s\t%5.5s", "First signature", "Second signature",
+                    "score","offset", "matchframes", "whole");
+            slog_info(4, "%20s\t%20s\t%5d\t%6d\t%11d\t%5d", args.filePaths[i],\
+                args.filePaths[j], result.score, result.offset,\
+                result.matchframes, result.whole);
         }
 
 
