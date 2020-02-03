@@ -52,5 +52,5 @@ endif
 .PHONY: clean
 clean:
 	@echo "Cleaning files"
-	@$(RM) -r $(DEST_DIR)
+	@$(RM) -r $(BUILD_DIR) $(BIN_DIR)
 	@echo "Cleaning finished"
