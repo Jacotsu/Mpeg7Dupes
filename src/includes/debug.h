@@ -1,8 +1,6 @@
 #ifndef DEBUGHEADER
 #define DEBUGHEADER
 
-#define DEBUG
-
 #ifdef DEBUG
 int __DEBUG = 1;
 #else
