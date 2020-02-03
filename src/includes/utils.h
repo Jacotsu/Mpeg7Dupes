@@ -16,11 +16,17 @@
 
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
 // ffmpeg downloaded headers
 #include "signature.h"
 
 // custom headers
 #include "slog.h"
+#include "customAssert.h"
+
 
 
 typedef struct BoundedCoarseSignature {
@@ -32,6 +38,8 @@ typedef struct BoundedCoarseSignature {
 } BoundedCoarseSignature;
 
 
+char*
+padStr(char *str, char *buffer, int maxLen, char padChar);
 
 void
 printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse);

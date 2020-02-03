@@ -1,5 +1,26 @@
 #include "utils.h"
 
+char*
+padStr(char *str, char *buffer, int maxLen, char padChar) {
+    int len, padSpace;
+    Assert(str);
+    Assert(buffer);
+
+    len = strlen(str);
+    Assert(len <= maxLen);
+
+    padSpace = (maxLen - len)/2;
+    Assert(padSpace >= 0);
+    for (int i = 0;  i < padSpace;++i)
+        buffer[i] = padChar;
+
+    strcat(&buffer[padSpace], str);
+    for (int i = len+padSpace; i < maxLen && i < maxLen;++i)
+        buffer[i] = padChar;
+    buffer[maxLen-1] = '\0';
+    return buffer;
+}
+
 void
 printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse) {
     for (FineSignature *i = list; i != end; i = i->next) {

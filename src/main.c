@@ -9,6 +9,7 @@ main(int argc, char **argv) {
     slog_init("logfile", "slog.cfg", 5, 1);
 	args = parseArguments(argc, argv);
 
+    slog_info(4, "Logging initialized");
     // 0    panic
     // 1    fatal
     // 2    error
@@ -32,23 +33,43 @@ main(int argc, char **argv) {
         .thit = args.thIt
     };
 
+    char strBuffer[170] = { 0 };
+    /*printf("%s\t%s\t%s\t%s\t%s\t%s\n",
+        padStr("First signature", strBuffer, 40, ' '),
+        padStr("Second signature",  &strBuffer[40], 55, ' '),
+        padStr("score", &strBuffer[95], 17, ' '),
+        padStr("offset", &strBuffer[150], 7, ' '),
+        padStr("matchframes", &strBuffer[153], 12, ' '),
+        padStr("whole", &strBuffer[165], 6, ' '));*/
+
+    printf("%s %s %s %s %s %s\n",
+        padStr("First signature", strBuffer, 40, ' '),
+        padStr("Second signature",  &strBuffer[40], 51, ' '),
+        padStr("score",  &strBuffer[91], 7, ' '),
+        "offset",
+        "matchframes",
+        "whole");
+
+
 
     for (unsigned int i = 0; i < args.numberOfPaths; ++i)
-        for(unsigned int j = i; j < args.numberOfPaths; ++j) {
+        for(unsigned int j = i + 1; j < args.numberOfPaths; ++j) {
             StreamContext *sig1 = binary_import(args.filePaths[i]);
             printStreamContext(sig1);
             StreamContext *sig2 = binary_import(args.filePaths[j]);
             printStreamContext(sig2);
+            slog_debug(6, "Processing %s\t%s", args.filePaths[i], \
+                args.filePaths[j]);
 
             result = lookup_signatures(&sigContext, sig1, sig2,
                 sigContext.mode);
-            slog_info(4, "%20.20s\t%20.20s\t%5.5s\t%6.6s\t"\
-                    "%11.11s\t%5.5s", "First signature", "Second signature",
-                    "score","offset", "matchframes", "whole");
-            slog_info(4, "%20s\t%20s\t%5d\t%6d\t%11d\t%5d", args.filePaths[i],\
-                args.filePaths[j], result.score, result.offset,\
+
+            printf("%28s %28s %3d  %5d   %8d   %1d\n",
+                args.filePaths[i], args.filePaths[j],
+                result.score, result.offset,\
                 result.matchframes, result.whole);
         }
+    slog_info(4, "Signature processing finished");
 
 
     return 0;
