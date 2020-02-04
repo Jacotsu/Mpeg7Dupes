@@ -37,7 +37,7 @@ main(int argc, char **argv) {
 
     char strBuffer[170] = { 0 };
 
-    printf("%s %s %s %s %s %s\n",
+    printf("%46.46s %46.46s %s %s %s %s\n",
         padStr("First signature", strBuffer, 40, ' '),
         padStr("Second signature",  &strBuffer[40], 51, ' '),
         padStr("score",  &strBuffer[91], 7, ' '),
