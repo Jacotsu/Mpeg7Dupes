@@ -23,7 +23,7 @@ padStr(char *str, char *buffer, int maxLen, char padChar) {
 
 void
 printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse) {
-    for (FineSignature *i = list; i != end; i = i->next) {
+    for (FineSignature *i = list; i != end && i; i = i->next) {
         if (lastCoarse) {
             if (i->next != end) {
                 slog_debug(6,"  \u2523\u2501\u2533 Fine signature at %p", i);

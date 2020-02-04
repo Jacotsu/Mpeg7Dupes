@@ -226,13 +226,20 @@ get_matching_parameters(
     } hspace_elem;
 
     /* houghspace */
-    hspace_elem** hspace = (hspace_elem**) calloc(MAX_FRAMERATE, \
-            sizeof(hspace_elem *));
+    //hspace_elem** hspace = (hspace_elem**) calloc(MAX_FRAMERATE, \
+    //        sizeof(hspace_elem *));
+    //hspace_elem** hspace = (hspace_elem**) malloc(MAX_FRAMERATE * \
+    //        sizeof(hspace_elem *));
 
     /* initialize houghspace */
+    // +10 to avoid stack smashing error, probably the following code
+    // accidentally tries to access reserved stack zones
+    hspace_elem hspace[MAX_FRAMERATE + 10][HOUGH_MAX_OFFSET + 10] = { 0 };
     for (i = 0; i < MAX_FRAMERATE; i++) {
-        hspace[i] = (hspace_elem*) calloc(2 * HOUGH_MAX_OFFSET + 1, \
-                sizeof(hspace_elem));
+        //hspace[i] = (hspace_elem*) calloc(2 * HOUGH_MAX_OFFSET + 1, \
+        //        sizeof(hspace_elem));
+        //hspace[i] = (hspace_elem*) malloc(2 * HOUGH_MAX_OFFSET + 1 * \
+        //        sizeof(hspace_elem));
         for (j = 0; j < HOUGH_MAX_OFFSET; j++) {
             hspace[i][j].score = 0;
             hspace[i][j].dist = 99999;
@@ -336,10 +343,10 @@ get_matching_parameters(
             }
         }
     }
-    for (i = 0; i < MAX_FRAMERATE; i++) {
-        free(hspace[i]);
-    }
-    free(hspace);
+    //for (i = 0; i < MAX_FRAMERATE; i++) {
+    //    free(hspace[i]);
+    //}
+    //free(hspace);
     return cands;
 }
 
