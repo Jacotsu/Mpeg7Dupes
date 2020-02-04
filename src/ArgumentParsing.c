@@ -40,7 +40,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         arguments->outputFormat = BEAUTIFUL;
         arguments->thD = 9000;
         arguments->thXh = 60000;
-        arguments->thDi = 0;
+        arguments->thDi = 15;
         arguments->thIt = 0.5;
         arguments->numberOfPaths = 0;
         arguments->filePaths = NULL;
@@ -132,7 +132,7 @@ parseArguments(int argc, char **argv) {
             "value is 60000."},
         { "thDi", 'i', 0, 0, "The minimum length of a sequence in frames to "\
             "recognize it as matching sequence. The option value must be a "\
-            "non negative integer value. The default value is 0."},
+            "non negative integer value. The default value is 15."},
         { "thIt", 'b', 0, 0, "The minimum relation, that matching frames "\
             "to all frames must have. The option value must be a double "\
             "value between 0 and 1. The default value is 0.5."},
