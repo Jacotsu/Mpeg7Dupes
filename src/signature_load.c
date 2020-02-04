@@ -1,21 +1,19 @@
 #include "signature_load.h"
 
 
-StreamContext*
-binary_import(const char* filename)
+void
+binary_import(StreamContext *sc, const char* filename)
 {
     FILE *f = NULL;
-    uint8_t *buffer = NULL;
     unsigned int rResult = 0, fileLength = 0, paddedLength = 0,\
         numOfSegments = 0;
-    StreamContext *sc = NULL;
+    uint8_t *buffer = NULL;
+    //StreamContext *sc = NULL;
     GetBitContext bitContext = { 0 };
 
     slog_debug(6, "Loading signature from: %s", filename);
 
-    // calloc seems to be slower
     //sc = (StreamContext*) calloc(1, sizeof(StreamContext));
-    sc = (StreamContext*) malloc(1*sizeof(StreamContext));
     Assert(sc);
 
     f = fopen(filename, "rb");
@@ -30,9 +28,8 @@ binary_import(const char* filename)
     // Cast to float is necessary to avoid int division
     paddedLength = ceil(fileLength / (float) AV_INPUT_BUFFER_PADDING_SIZE)*\
                    AV_INPUT_BUFFER_PADDING_SIZE;
-    //buffer = (uint8_t*) calloc(paddedLength, sizeof(uint8_t));
-    buffer = (uint8_t*) malloc(paddedLength*sizeof(uint8_t));
-    //LoggedAssert(buffer, "Could not allocate memory buffer");
+    buffer = (uint8_t*) calloc(paddedLength, sizeof(uint8_t));
+    LoggedAssert(buffer, "Could not allocate memory buffer");
 
     // Read entire file into memory
     rResult = fread(buffer, sizeof(uint8_t), fileLength, f);
@@ -90,16 +87,11 @@ binary_import(const char* filename)
     numOfSegments = (sc->lastindex + 44)/45;
     skip_bits(&bitContext, 32);
 
-	//sc->coarsesiglist = (CoarseSignature*) calloc(numOfSegments,\
-    //        sizeof(CoarseSignature));
-	sc->coarsesiglist = (CoarseSignature*) malloc(numOfSegments*
+	sc->coarsesiglist = (CoarseSignature*) calloc(numOfSegments,\
             sizeof(CoarseSignature));
 
-	//BoundedCoarseSignature *bCoarseList = (BoundedCoarseSignature*)\
-     //   calloc(numOfSegments, sizeof(BoundedCoarseSignature));
-	//BoundedCoarseSignature *bCoarseList = (BoundedCoarseSignature*)\
-    //    malloc(numOfSegments * sizeof(BoundedCoarseSignature));
-	BoundedCoarseSignature bCoarseList[numOfSegments];
+	BoundedCoarseSignature *bCoarseList = (BoundedCoarseSignature*)\
+        calloc(numOfSegments, sizeof(BoundedCoarseSignature));
 
     LoggedAssert(sc->coarsesiglist, "Failed to create coarse signature list");
     LoggedAssert(bCoarseList, "Failed to create bounded "\
@@ -154,9 +146,7 @@ binary_import(const char* filename)
     skip_bits(&bitContext, 1);
 
 
-    //sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
-    //        sizeof(FineSignature));
-    sc->finesiglist = (FineSignature*) malloc(sc->lastindex *\
+    sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
             sizeof(FineSignature));
     LoggedAssert(sc->finesiglist,\
         "Could not allocate FineSignatures memory buffer");
@@ -254,7 +244,6 @@ binary_import(const char* filename)
     if (sc->coarseend->first)
         sc->coarseend->first->pts = 0;
 
-    //free(bCoarseList);
+    free(bCoarseList);
     free(buffer);
-    return sc;
 }

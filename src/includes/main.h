@@ -23,5 +23,7 @@
 #include "ArgumentParsing.h"
 #include "utils.h"
 
+#define NUM_OF_INPUTS 2
+
 
 #endif

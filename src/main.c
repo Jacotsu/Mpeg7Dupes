@@ -5,6 +5,7 @@ struct arguments args;
 int
 main(int argc, char **argv) {
     MatchingInfo result = {0};
+    StreamContext scontexts[NUM_OF_INPUTS] = { 0 };
 
     slog_init("logfile", "slog.cfg", 5, 1);
 	args = parseArguments(argc, argv);
@@ -24,23 +25,17 @@ main(int argc, char **argv) {
 	SignatureContext sigContext = {
         .class = NULL,
         .mode = args.mode,
-        .nb_inputs = 1,
+        .nb_inputs = NUM_OF_INPUTS,
         .filename = "",
         .thworddist = args.thD,
         .thcomposdist = args.thDc,
         .thl1 = args.thXh,
         .thdi = args.thDi,
-        .thit = args.thIt
+        .thit = args.thIt,
+        .streamcontexts = scontexts
     };
 
     char strBuffer[170] = { 0 };
-    /*printf("%s\t%s\t%s\t%s\t%s\t%s\n",
-        padStr("First signature", strBuffer, 40, ' '),
-        padStr("Second signature",  &strBuffer[40], 55, ' '),
-        padStr("score", &strBuffer[95], 17, ' '),
-        padStr("offset", &strBuffer[150], 7, ' '),
-        padStr("matchframes", &strBuffer[153], 12, ' '),
-        padStr("whole", &strBuffer[165], 6, ' '));*/
 
     printf("%s %s %s %s %s %s\n",
         padStr("First signature", strBuffer, 40, ' '),
@@ -52,23 +47,43 @@ main(int argc, char **argv) {
 
 
 
-    for (unsigned int i = 0; i < args.numberOfPaths; ++i)
+    for (unsigned int i = 0; i < args.numberOfPaths; ++i) {
+        binary_import(&scontexts[0], args.filePaths[i]);
+        printStreamContext(&scontexts[0]);
         for(unsigned int j = i + 1; j < args.numberOfPaths; ++j) {
-            StreamContext *sig1 = binary_import(args.filePaths[i]);
-            printStreamContext(sig1);
-            StreamContext *sig2 = binary_import(args.filePaths[j]);
-            printStreamContext(sig2);
+            binary_import(&scontexts[1], args.filePaths[j]);
+            printStreamContext(&scontexts[1]);
             slog_debug(6, "Processing %s\t%s", args.filePaths[i], \
                 args.filePaths[j]);
 
-            result = lookup_signatures(&sigContext, sig1, sig2,
-                sigContext.mode);
+            result = lookup_signatures(&sigContext, &scontexts[0],\
+                &scontexts[1], sigContext.mode);
 
-            printf("%-46.46s %-46.46s %3d  %5d   %8d   %1d\n",
-                args.filePaths[i], args.filePaths[j],
-                result.score, result.offset,\
-                result.matchframes, result.whole);
+            if (j == i + 1) {
+                if (args.numberOfPaths - j > 1) {
+                    printf("%-46.46s \u2533 %-46.46s %3d  %5d   %8d   %1d\n",
+                        args.filePaths[i], args.filePaths[j],
+                        result.score, result.offset,\
+                        result.matchframes, result.whole);
+                } else {
+                    printf("%-46.46s \u2501 %-46.46s %3d  %5d   %8d   %1d\n",
+                        args.filePaths[i], args.filePaths[j],
+                        result.score, result.offset,\
+                        result.matchframes, result.whole);
+                }
+            } else if (j == args.numberOfPaths - 1) {
+                printf("%-46.46s \u2517 %-46.46s %3d  %5d   %8d   %1d\n",
+                    " ", args.filePaths[j],
+                    result.score, result.offset,\
+                    result.matchframes, result.whole);
+            } else {
+                printf("%-46.46s \u2523 %-46.46s %3d  %5d   %8d   %1d\n",
+                    " ", args.filePaths[j],
+                    result.score, result.offset,\
+                    result.matchframes, result.whole);
+            }
         }
+    }
     slog_info(4, "Signature processing finished");
 
 

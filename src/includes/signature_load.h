@@ -21,7 +21,7 @@
 #include "signature_load.h"
 
 
-StreamContext*
-binary_import(const char*);
+void
+binary_import(StreamContext*,const char*);
 
 #endif
