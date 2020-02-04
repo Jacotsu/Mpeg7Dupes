@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "slog.h"
 #include "customAssert.h"
+#include "printers.h"
 #include "ArgumentParsing.h"
 #include "utils.h"
 

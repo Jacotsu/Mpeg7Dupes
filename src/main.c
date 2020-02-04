@@ -6,6 +6,9 @@ int
 main(int argc, char **argv) {
     MatchingInfo result = {0};
     StreamContext scontexts[NUM_OF_INPUTS] = { 0 };
+    void (*printFunctionPointer)(MatchingInfo *info, char *file1, char *file2,\
+    int isFirst, int isLast, int isMoreThanOne) = printBeautiful;
+;
 
     slog_init("logfile", "slog.cfg", 5, 1);
 	args = parseArguments(argc, argv);
@@ -35,17 +38,13 @@ main(int argc, char **argv) {
         .streamcontexts = scontexts
     };
 
-    char strBuffer[170] = { 0 };
-
-    printf("%46.46s %46.46s %s %s %s %s\n",
-        padStr("First signature", strBuffer, 40, ' '),
-        padStr("Second signature",  &strBuffer[40], 51, ' '),
-        padStr("score",  &strBuffer[91], 7, ' '),
-        "offset",
-        "matchframes",
-        "whole");
-
-
+    if (args.outputFormat == CSV) {
+        printCSVHeader();
+        printFunctionPointer = printCSV;
+    } else {
+        printBeautifulHeader();
+        printFunctionPointer = printBeautiful;
+    }
 
     for (unsigned int i = 0; i < args.numberOfPaths; ++i) {
         binary_import(&scontexts[0], args.filePaths[i]);
@@ -61,26 +60,18 @@ main(int argc, char **argv) {
 
             if (j == i + 1) {
                 if (args.numberOfPaths - j > 1) {
-                    printf("%-46.46s \u2533 %-46.46s %3d  %5d   %8d   %1d\n",
-                        args.filePaths[i], args.filePaths[j],
-                        result.score, result.offset,\
-                        result.matchframes, result.whole);
+                    printFunctionPointer(&result, args.filePaths[i],
+                        args.filePaths[j], 1, 0, 1);
                 } else {
-                    printf("%-46.46s \u2501 %-46.46s %3d  %5d   %8d   %1d\n",
-                        args.filePaths[i], args.filePaths[j],
-                        result.score, result.offset,\
-                        result.matchframes, result.whole);
+                    printFunctionPointer(&result, args.filePaths[i],
+                        args.filePaths[j], 1, 0, 0);
                 }
             } else if (j == args.numberOfPaths - 1) {
-                printf("%-46.46s \u2517 %-46.46s %3d  %5d   %8d   %1d\n",
-                    " ", args.filePaths[j],
-                    result.score, result.offset,\
-                    result.matchframes, result.whole);
+                printFunctionPointer(&result, args.filePaths[i],
+                    args.filePaths[j], 0, 1, 0);
             } else {
-                printf("%-46.46s \u2523 %-46.46s %3d  %5d   %8d   %1d\n",
-                    " ", args.filePaths[j],
-                    result.score, result.offset,\
-                    result.matchframes, result.whole);
+                printFunctionPointer(&result, args.filePaths[i],
+                    args.filePaths[j], 0, 0, 1);
             }
         }
     }

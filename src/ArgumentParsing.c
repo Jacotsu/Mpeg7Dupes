@@ -10,7 +10,7 @@ numberForKey(char *key)
             return dict[i].n;
         name = dict[++i].str;
     }
-    return 0;
+    return -1;
 }
 
 
@@ -31,11 +31,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 'x': lastKeyFlag = 'x'; break;
     case 'i': lastKeyFlag = 'i'; break;
     case 'b': lastKeyFlag = 'b'; break;
+    case 'f': lastKeyFlag = 'f'; break;
     case ARGP_KEY_INIT:
         slog_debug(6, "Initializing arg parsing");
         arguments->verbose = 0;
         arguments->mode = MODE_FULL;
         arguments->sigType = BINARY;
+        arguments->outputFormat = BEAUTIFUL;
         arguments->thD = 9000;
         arguments->thXh = 60000;
         arguments->thDi = 0;
@@ -57,6 +59,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             case 'x': if (arg) arguments->thXh  = atof(arg); break;
             case 'i': if (arg) arguments->thDi  = atof(arg); break;
             case 'b': if (arg) arguments->thIt  = atof(arg); break;
+            case 'f': if (arg) arguments->outputFormat  = numberForKey(arg);
+                          break;
         }
         // Remember to reset the keyflag
         lastKeyFlag = 0;
@@ -86,6 +90,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 "Minimum sequence length must be positive");
             LoggedAssert(arguments->thIt >= 0,\
                 "Minimum relation must be between 0 and 1");
+            LoggedAssert(arguments->outputFormat == BEAUTIFUL ||
+                arguments->outputFormat == CSV,\
+                "Output format not supported");
 
             for (unsigned int i = 0; i < arguments->numberOfPaths; ++i) {
                 FILE *tmp = fopen(arguments->filePaths[i], "rb");
@@ -129,6 +136,8 @@ parseArguments(int argc, char **argv) {
         { "thIt", 'b', 0, 0, "The minimum relation, that matching frames "\
             "to all frames must have. The option value must be a double "\
             "value between 0 and 1. The default value is 0.5."},
+        { "output_format", 'f', 0, 0, "The desired output format. "\
+            "Only csv and beautiful are supported. beautiful is default"},
         { 0 }
     };
 

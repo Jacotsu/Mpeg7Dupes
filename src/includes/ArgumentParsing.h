@@ -18,10 +18,16 @@ enum signatureType {
 	BINARY, XML
 };
 
+
+enum formatTypes {
+	BEAUTIFUL, CSV
+};
+
 struct arguments {
     int verbose;
     enum lookup_mode mode;
     enum signatureType sigType;
+    enum formatTypes outputFormat;
 	double thD, thDc, thXh, thDi, thIt;
     char **filePaths;
     unsigned int numberOfPaths;
@@ -39,6 +45,8 @@ static struct entry dict[] = {
     {"xml", XML},
     {"fast", MODE_FAST},
     {"full", MODE_FULL},
+    {"csv", CSV},
+    {"beautiful", BEAUTIFUL},
 };
 
 
