@@ -27,6 +27,7 @@
 #define AVFILTER_SIGNATURE_H
 
 #include <float.h>
+#include <math.h>
 #include "libavutil/common.h"
 #include "libavutil/opt.h"
 #include "libavutil/timestamp.h"
@@ -144,6 +145,20 @@ typedef struct SignatureContext {
     StreamContext* streamcontexts;
 } SignatureContext;
 
+struct pairs {
+    uint8_t size;
+    unsigned int dist;
+    FineSignature *a;
+    uint8_t b_pos[COARSE_SIZE];
+    FineSignature *b[COARSE_SIZE];
+};
+
+typedef struct hspace_elem {
+    int dist;
+    size_t score;
+    FineSignature *a;
+    FineSignature *b;
+} hspace_elem;
 
 static const Block elem_a1_data[] = {
     {{ 0, 0},{ 7, 7}},

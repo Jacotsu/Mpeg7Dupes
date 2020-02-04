@@ -204,54 +204,35 @@ get_matching_parameters(
 	FineSignature *first,
 	FineSignature *second)
 {
-    FineSignature *f, *s;
-    size_t i, j, k, l, hmax = 0, score;
+    FineSignature *f;
+    size_t k, l, hmax = 0, score;
     int framerate, offset, l1dist;
     double m;
     MatchingInfo *cands = NULL, *c = NULL;
+    struct pairs pairs[COARSE_SIZE] = { [0 ... COARSE_SIZE-1] = \
+        {.size = 0, .dist = 9999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
 
-    struct {
-        uint8_t size;
-        unsigned int dist;
-        FineSignature *a;
-        uint8_t b_pos[COARSE_SIZE];
-        FineSignature *b[COARSE_SIZE];
-    } pairs[COARSE_SIZE];
-
-    typedef struct hspace_elem {
-        int dist;
-        size_t score;
-        FineSignature *a;
-        FineSignature *b;
-    } hspace_elem;
 
     /* houghspace */
-    //hspace_elem** hspace = (hspace_elem**) calloc(MAX_FRAMERATE, \
-    //        sizeof(hspace_elem *));
-    //hspace_elem** hspace = (hspace_elem**) malloc(MAX_FRAMERATE * \
-    //        sizeof(hspace_elem *));
+    // Removed malloc/calloc to avoid useless memory allocation
+    // when plenty of space is avaiable in the stack
 
     /* initialize houghspace */
     // +10 to avoid stack smashing error, probably the following code
     // accidentally tries to access reserved stack zones
-    hspace_elem hspace[MAX_FRAMERATE + 10][HOUGH_MAX_OFFSET + 10] = { 0 };
-    for (i = 0; i < MAX_FRAMERATE; i++) {
-        //hspace[i] = (hspace_elem*) calloc(2 * HOUGH_MAX_OFFSET + 1, \
-        //        sizeof(hspace_elem));
-        //hspace[i] = (hspace_elem*) malloc(2 * HOUGH_MAX_OFFSET + 1 * \
-        //        sizeof(hspace_elem));
-        for (j = 0; j < HOUGH_MAX_OFFSET; j++) {
-            hspace[i][j].score = 0;
-            hspace[i][j].dist = 99999;
-        }
-    }
+    // designated initializer notation, removes initialization loops
+    hspace_elem hspace[MAX_FRAMERATE + 10][HOUGH_MAX_OFFSET + 10] = { \
+        [0 ... MAX_FRAMERATE-1] = \
+            { [0 ... HOUGH_MAX_OFFSET-1] = {.score = 0, .dist = 99999} }
+    };
 
     /* l1 distances */
-    for (i = 0, f = first; i < COARSE_SIZE && f->next; i++, f = f->next) {
-        pairs[i].size = 0;
-        pairs[i].dist = 99999;
+    f = first;
+    for (unsigned int i = 0; i < COARSE_SIZE && f->next; i++, f = f->next) {
         pairs[i].a = f;
-        for (j = 0, s = second; j < COARSE_SIZE && s->next; j++, s = s->next) {
+        FineSignature *s = second;
+        for (unsigned int j = 0; j < COARSE_SIZE && s->next;\
+            j++, s = s->next) {
             /* l1 distance of finesignature */
             l1dist = get_l1dist(sc, f->framesig, s->framesig);
             if (l1dist < sc->thl1) {
@@ -268,40 +249,36 @@ get_matching_parameters(
             }
         }
     }
-    /* last incomplete coarsesignature */
-    if (f->next == NULL) {
-        for (; i < COARSE_SIZE; i++) {
-            pairs[i].size = 0;
-            pairs[i].dist = 99999;
-        }
-    }
 
     /* hough transformation */
-    for (i = 0; i < COARSE_SIZE; i++) {
-        for (j = 0; j < pairs[i].size; j++) {
-            for (k = i + 1; k < COARSE_SIZE; k++) {
-                for (l = 0; l < pairs[k].size; l++) {
+    for (unsigned int i = 0; i < COARSE_SIZE; i++) {
+        for (unsigned int j = 0; j < pairs[i].size; j++) {
+            for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
+                for (unsigned int l = 0; l < pairs[k].size; l++) {
                     if (pairs[i].b[j] != pairs[k].b[l]) {
-                        /* linear regression */
-                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i); /* good value between 0.0 - 2.0 */
-                        framerate = (int) m*30 + 0.5; /* round up to 0 - 60 */
-                        if (framerate>0 && framerate <= MAX_FRAMERATE) {
-                            offset = pairs[i].b_pos[j] - ((int) m*i + 0.5); /* only second part has to be rounded up */
+                        // linear regression
+                        // good value between 0.0 - 2.0
+                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
+                        // round up to 0 - 60
+                        framerate = round( m*30 + 0.5);
+                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
+                            // only second part has to be rounded up
+                            offset = pairs[i].b_pos[j] - round(m*i + 0.5);
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-                                if (pairs[i].dist < pairs[k].dist) {
-                                    if (pairs[i].dist < (unsigned int) hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist) {
+                                unsigned int hspaceThreshold = pairs[i].dist \
+                                    < (unsigned int) hspace[framerate-1]\
+                                    [offset+HOUGH_MAX_OFFSET].dist;
+                                if (hspaceThreshold) {
+                                    if (pairs[i].dist < pairs[k].dist) {
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[i].dist;
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[i].a;
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[i].b[j];
-                                    }
-                                } else {
-                                    if (pairs[k].dist < (unsigned int) hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist) {
+                                    } else {
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[k].dist;
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[k].a;
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[k].b[l];
                                     }
                                 }
-
                                 score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
                                 if (score > hmax )
                                     hmax = score;
@@ -315,9 +292,9 @@ get_matching_parameters(
     }
 
     if (hmax > 0) {
-        hmax = (int) (0.7*hmax);
-        for (i = 0; i < MAX_FRAMERATE; i++) {
-            for (j = 0; j < HOUGH_MAX_OFFSET; j++) {
+        hmax = round(0.7*hmax);
+        for (unsigned int i = 0; i < MAX_FRAMERATE; i++) {
+            for (unsigned int j = 0; j < HOUGH_MAX_OFFSET; j++) {
                 if (hmax < hspace[i][j].score) {
                     if (c == NULL) {
                         c = (MatchingInfo*) malloc(sizeof(MatchingInfo));
@@ -343,10 +320,6 @@ get_matching_parameters(
             }
         }
     }
-    //for (i = 0; i < MAX_FRAMERATE; i++) {
-    //    free(hspace[i]);
-    //}
-    //free(hspace);
     return cands;
 }
 
@@ -591,7 +564,6 @@ lookup_signatures(
     CoarseSignature *cs, *cs2;
     MatchingInfo *infos;
     MatchingInfo bestmatch;
-    MatchingInfo *i;
 
     cs = first->coarsesiglist;
     cs2 = second->coarsesiglist;
@@ -607,7 +579,7 @@ lookup_signatures(
     if (find_next_coarsecandidate(sc, second->coarsesiglist, &cs, &cs2, 1) == 0)
         return bestmatch; /* no candidate found */
     do {
-        // No emty coarse signatures allowed
+        // No empty coarse signatures allowed
         if (cs->first && cs->last && cs2->first && cs2->last) {
             slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
                 "frame: %" PRIu32 " and %" PRIu32,
@@ -615,7 +587,7 @@ lookup_signatures(
             /* stage 2: l1-distance and hough-transform */
             slog_debug(6, "Stage 2: calculate matching parameters");
             infos = get_matching_parameters(sc, cs->first, cs2->first);
-            for (i = infos; i != NULL; i = i->next) {
+            for (MatchingInfo *i = infos; i != NULL; i = i->next) {
                 slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
                     PRIu32 ", ratio %f, offset %d", i->first->index, \
                     i->second->index, i->framerateratio, i->offset);
