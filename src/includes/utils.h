@@ -28,6 +28,10 @@
 #include "customAssert.h"
 
 
+struct fileIndex {
+    long int indexA, indexB;
+    FILE *fileList;
+};
 
 typedef struct BoundedCoarseSignature {
     // StartFrameOfSegment and EndFrameOfSegment
@@ -37,6 +41,15 @@ typedef struct BoundedCoarseSignature {
     CoarseSignature *cSign;
 } BoundedCoarseSignature;
 
+int
+initFileIterator(struct fileIndex *fileIndex, char *fileListName);
+
+int
+terminateFileIterator(struct fileIndex *fileIndex);
+
+int
+nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
+    char *destBuffer2, int maxLen);
 
 char*
 padStr(char *str, char *buffer, int maxLen, char padChar);

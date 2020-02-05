@@ -32,9 +32,11 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 'i': lastKeyFlag = 'i'; break;
     case 'b': lastKeyFlag = 'b'; break;
     case 'f': lastKeyFlag = 'f'; break;
+    case 'l': lastKeyFlag = 'l'; break;
     case ARGP_KEY_INIT:
         slog_debug(6, "Initializing arg parsing");
         arguments->verbose = 0;
+        arguments->listFile = NULL;
         arguments->mode = MODE_FULL;
         arguments->sigType = BINARY;
         arguments->outputFormat = BEAUTIFUL;
@@ -61,12 +63,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             case 'b': if (arg) arguments->thIt  = atof(arg); break;
             case 'f': if (arg) arguments->outputFormat  = numberForKey(arg);
                           break;
+            case 'l': arguments->listFile = arg; break;
         }
         // Remember to reset the keyflag
         lastKeyFlag = 0;
         break;
     case ARGP_KEY_END:
-        if (state->arg_num < 2) {
+        if (state->arg_num < 2 && !arguments->listFile) {
             slog_error(2, "You should supply at least 2 files");
             argp_usage(state);
         } else {
@@ -93,6 +96,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             LoggedAssert(arguments->outputFormat == BEAUTIFUL ||
                 arguments->outputFormat == CSV,\
                 "Output format not supported");
+            FILE *listFile = fopen(arguments->listFile, "rb");
+            fclose(listFile);
+            LoggedAssert(listFile, "List file not found");
 
             for (unsigned int i = 0; i < arguments->numberOfPaths; ++i) {
                 FILE *tmp = fopen(arguments->filePaths[i], "rb");
@@ -138,6 +144,7 @@ parseArguments(int argc, char **argv) {
             "value between 0 and 1. The default value is 0.5."},
         { "output_format", 'f', 0, 0, "The desired output format. "\
             "Only csv and beautiful are supported. beautiful is default"},
+        { "file_list", 'l', 0, 0, "Specify a list of signature files"},
         { 0 }
     };
 

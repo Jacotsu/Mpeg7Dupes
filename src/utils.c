@@ -1,5 +1,55 @@
 #include "utils.h"
 
+
+
+int
+initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
+    Assert(fileIndex);
+    fileIndex->fileList = fopen(fileListName, "r");
+    LoggedAssert(fileIndex->fileList, "Failed to open %s", fileListName);
+    fileIndex->indexA = ftell(fileIndex->fileList);
+    fileIndex->indexB = ftell(fileIndex->fileList);
+
+    return 1;
+}
+
+int
+terminateFileIterator(struct fileIndex *fileIndex) {
+    Assert(fileIndex);
+    fclose(fileIndex->fileList);
+    return 1;
+}
+
+int
+nextFileIteration(struct fileIndex *fileIndex,
+    char *destBuffer, char *destBuffer2, int maxLen) {
+    Assert(fileIndex);
+
+    if (feof(fileIndex->fileList)) {
+        fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
+        fgets (destBuffer, maxLen, fileIndex->fileList);
+        if (!feof(fileIndex->fileList)) {
+            fileIndex->indexA = ftell(fileIndex->fileList);
+            fgets (destBuffer2, maxLen, fileIndex->fileList);
+            if (!feof(fileIndex->fileList)) {
+                fileIndex->indexB = ftell(fileIndex->fileList);
+                return 1;
+            }
+        }
+    } else {
+        fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
+        fgets (destBuffer, maxLen, fileIndex->fileList);
+
+        if (!feof(fileIndex->fileList)) {
+            fseek(fileIndex->fileList, fileIndex->indexB, SEEK_SET);
+            fgets (destBuffer2, maxLen, fileIndex->fileList);
+            fileIndex->indexB = ftell(fileIndex->fileList);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 char*
 padStr(char *str, char *buffer, int maxLen, char padChar) {
     int len, padSpace;

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <argp.h>
 
 #include "slog.h"
@@ -25,6 +26,7 @@ enum formatTypes {
 
 struct arguments {
     int verbose;
+    char *listFile;
     enum lookup_mode mode;
     enum signatureType sigType;
     enum formatTypes outputFormat;

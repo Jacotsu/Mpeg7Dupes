@@ -46,32 +46,44 @@ main(int argc, char **argv) {
         printFunctionPointer = printBeautiful;
     }
 
-    for (unsigned int i = 0; i < args.numberOfPaths; ++i) {
-        binary_import(&scontexts[0], args.filePaths[i]);
-        printStreamContext(&scontexts[0]);
-        for(unsigned int j = i + 1; j < args.numberOfPaths; ++j) {
-            binary_import(&scontexts[1], args.filePaths[j]);
-            printStreamContext(&scontexts[1]);
-            slog_debug(6, "Processing %s\t%s", args.filePaths[i], \
-                args.filePaths[j]);
 
-            result = lookup_signatures(&sigContext, &scontexts[0],\
-                &scontexts[1], sigContext.mode);
+    if (args.listFile) {
+        struct fileIndex index;
+        char file1[200], file2[200];
+        initFileIterator(&index, args.listFile);
 
-            if (j == i + 1) {
-                if (args.numberOfPaths - j > 1) {
+        while (nextFileIteration(&index, file1, file2, 200))
+            printf("%s %s\n", file1, file2);
+
+        terminateFileIterator(&index);
+    } else {
+        for (unsigned int i = 0; i < args.numberOfPaths; ++i) {
+            binary_import(&scontexts[0], args.filePaths[i]);
+            printStreamContext(&scontexts[0]);
+            for(unsigned int j = i + 1; j < args.numberOfPaths; ++j) {
+                binary_import(&scontexts[1], args.filePaths[j]);
+                printStreamContext(&scontexts[1]);
+                slog_debug(6, "Processing %s\t%s", args.filePaths[i], \
+                    args.filePaths[j]);
+
+                result = lookup_signatures(&sigContext, &scontexts[0],\
+                    &scontexts[1], sigContext.mode);
+
+                if (j == i + 1) {
+                    if (args.numberOfPaths - j > 1) {
+                        printFunctionPointer(&result, args.filePaths[i],
+                            args.filePaths[j], 1, 0, 1);
+                    } else {
+                        printFunctionPointer(&result, args.filePaths[i],
+                            args.filePaths[j], 1, 0, 0);
+                    }
+                } else if (j == args.numberOfPaths - 1) {
                     printFunctionPointer(&result, args.filePaths[i],
-                        args.filePaths[j], 1, 0, 1);
+                        args.filePaths[j], 0, 1, 0);
                 } else {
                     printFunctionPointer(&result, args.filePaths[i],
-                        args.filePaths[j], 1, 0, 0);
+                        args.filePaths[j], 0, 0, 1);
                 }
-            } else if (j == args.numberOfPaths - 1) {
-                printFunctionPointer(&result, args.filePaths[i],
-                    args.filePaths[j], 0, 1, 0);
-            } else {
-                printFunctionPointer(&result, args.filePaths[i],
-                    args.filePaths[j], 0, 0, 1);
             }
         }
     }
