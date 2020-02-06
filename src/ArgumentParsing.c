@@ -95,6 +95,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         } else if (arguments->listFile){
             FILE *listFile = fopen(arguments->listFile, "rb");
             LoggedAssert(listFile, "List file not found");
+            // Count number of file entries, atleast 2 are needed
+            unsigned int numOfLines = 0;
+            do {
+                char readChar = fgetc(listFile);
+                if (readChar == '\n' || readChar == EOF)
+                    ++numOfLines;
+            } while (!feof(listFile) && numOfLines < 3);
+            LoggedAssert(numOfLines > 1, "File list invalid, atleast two "\
+                "entries are required");
+
             fclose(listFile);
         } else {
             // First path is executable
