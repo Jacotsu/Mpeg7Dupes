@@ -69,40 +69,43 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         lastKeyFlag = 0;
         break;
     case ARGP_KEY_END:
+        // Bound checking and sanitization
+        LoggedAssert(arguments->mode == MODE_FULL ||\
+            arguments->mode == MODE_FAST,
+            "Unsupported mode");
+        LoggedAssert(arguments->sigType == BINARY,
+            "Only binary signatures are supported");
+        LoggedAssert(arguments->thD >= 0,\
+            "Word threshold must be positive");
+        LoggedAssert(arguments->thDc >= 0,\
+            "Detect threshold must be positive")
+        LoggedAssert(arguments->thXh >= 0,\
+            "Cumulative words threshold must be positive");
+        LoggedAssert(arguments->thDi >= 0,\
+            "Minimum sequence length must be positive");
+        LoggedAssert(arguments->thIt >= 0,\
+            "Minimum relation must be between 0 and 1");
+        LoggedAssert(arguments->outputFormat == BEAUTIFUL ||
+            arguments->outputFormat == CSV,\
+            "Output format not supported");
+
         if (state->arg_num < 2 && !arguments->listFile) {
             slog_error(2, "You should supply at least 2 files");
             argp_usage(state);
+        } else if (arguments->listFile){
+            FILE *listFile = fopen(arguments->listFile, "rb");
+            LoggedAssert(listFile, "List file not found");
+            fclose(listFile);
         } else {
             // First path is executable
             arguments->numberOfPaths = state->arg_num - numUsedArgs;
             arguments->filePaths = state->argv + state->argc -\
                 arguments->numberOfPaths;
-            // Bound checking and sanitization
-            LoggedAssert(arguments->mode == MODE_FULL ||\
-                arguments->mode == MODE_FAST,
-                "Unsupported mode");
-            LoggedAssert(arguments->sigType == BINARY,
-                "Only binary signatures are supported");
-            LoggedAssert(arguments->thD >= 0,\
-                "Word threshold must be positive");
-            LoggedAssert(arguments->thDc >= 0,\
-                "Detect threshold must be positive")
-            LoggedAssert(arguments->thXh >= 0,\
-                "Cumulative words threshold must be positive");
-            LoggedAssert(arguments->thDi >= 0,\
-                "Minimum sequence length must be positive");
-            LoggedAssert(arguments->thIt >= 0,\
-                "Minimum relation must be between 0 and 1");
-            LoggedAssert(arguments->outputFormat == BEAUTIFUL ||
-                arguments->outputFormat == CSV,\
-                "Output format not supported");
-            FILE *listFile = fopen(arguments->listFile, "rb");
-            fclose(listFile);
-            LoggedAssert(listFile, "List file not found");
 
             for (unsigned int i = 0; i < arguments->numberOfPaths; ++i) {
                 FILE *tmp = fopen(arguments->filePaths[i], "rb");
-                LoggedAssert(tmp, "File %s not found, aborting");
+                LoggedAssert(tmp, "File %s not found, aborting",
+                    arguments->filePaths[i]);
                 fclose(tmp);
             }
         }
