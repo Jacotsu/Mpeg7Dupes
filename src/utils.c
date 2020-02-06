@@ -13,6 +13,23 @@ initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     return 1;
 }
 
+unsigned int
+getNumberOfLinesFromIterator(struct fileIndex *fileIndex) {
+    Assert(fileIndex->fileList);
+    long currentIndex = ftell(fileIndex->fileList);
+    unsigned int lineNumber = 0;
+    char chr = EOF;
+
+    do {
+        chr = getc(fileIndex->fileList);
+        if (chr == '\n')
+            ++lineNumber;
+    } while (chr != EOF);
+
+    fseek(fileIndex->fileList, currentIndex, SEEK_SET);
+    return lineNumber;
+}
+
 int
 terminateFileIterator(struct fileIndex *fileIndex) {
     Assert(fileIndex);
@@ -20,6 +37,9 @@ terminateFileIterator(struct fileIndex *fileIndex) {
     return 1;
 }
 
+// Given a fileIndex struct
+// This function iterates over all the combinations of the lines
+// in the file list
 int
 nextFileIteration(struct fileIndex *fileIndex,
     char *destBuffer, char *destBuffer2, int maxLen) {
@@ -28,9 +48,12 @@ nextFileIteration(struct fileIndex *fileIndex,
     if (feof(fileIndex->fileList)) {
         fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
         fgets (destBuffer, maxLen, fileIndex->fileList);
+        // Remove newlines from path
+        strtok(destBuffer, "\n");
         if (!feof(fileIndex->fileList)) {
             fileIndex->indexA = ftell(fileIndex->fileList);
             fgets (destBuffer2, maxLen, fileIndex->fileList);
+            strtok(destBuffer2, "\n");
             if (!feof(fileIndex->fileList)) {
                 fileIndex->indexB = ftell(fileIndex->fileList);
                 return 1;
@@ -39,10 +62,12 @@ nextFileIteration(struct fileIndex *fileIndex,
     } else {
         fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
         fgets (destBuffer, maxLen, fileIndex->fileList);
+        strtok(destBuffer, "\n");
 
         if (!feof(fileIndex->fileList)) {
             fseek(fileIndex->fileList, fileIndex->indexB, SEEK_SET);
             fgets (destBuffer2, maxLen, fileIndex->fileList);
+            strtok(destBuffer2, "\n");
             fileIndex->indexB = ftell(fileIndex->fileList);
             return 1;
         }
