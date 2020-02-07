@@ -30,12 +30,23 @@ debug: buildDirs
 	@echo Building debug
 	@$(MAKE) $(MAKEFILE) DEBUG="1" link
 
+.PHONY: optiDebug
+optiDebug: buildDirs
+	@echo Building debug
+	@$(MAKE) $(MAKEFILE) DEBUG="1" OPTIDEBUG="1" link
+
 link: ${OBJS}
 	@echo Linking
 ifndef DEBUG
 	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesRelease.elf ${LIBS}
 else
-	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesDebug.elf ${LIBS}
+
+ifndef OPTIDEBUG
+	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesOptiDebug.elf ${LIBS}
+else
+	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesOptiDebug.elf ${LIBS}
+endif
+
 endif
 
 compile: ${OBJS}
@@ -46,7 +57,13 @@ ${BUILD_DIR}/%o: src/%c
 ifndef DEBUG
 	$(CC) -c  ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
 else
+
+ifndef OPTIDEBUG
+	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} -Og $< -o $@ ${INCLUDES}
+else
 	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+endif
+
 endif
 
 .PHONY: clean
