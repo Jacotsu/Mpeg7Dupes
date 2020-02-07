@@ -30,3 +30,16 @@ Then compare the signatures with the following command
 ```
 ./bin/mpeg7DupesRelease.elf {signature 1} {signature 2} ...
 ```
+
+Or create a `list` of files, like the following
+```
+{path to file 1}
+{path to file 2}
+{path to file 3}
+...
+{path to file n}
+```
+And then launch mpeg7Dupes
+```
+./bin/mpeg7DupesRelease.elf -l list_of_files
+```
