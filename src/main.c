@@ -79,6 +79,8 @@ main(int argc, char **argv) {
             } else {
                 printFunctionPointer(&result, file1, file2, 0, 0, 1);
             }
+
+            fflush(stdout);
         }
 
         terminateFileIterator(&index);
@@ -110,6 +112,7 @@ main(int argc, char **argv) {
                     printFunctionPointer(&result, args.filePaths[i],
                         args.filePaths[j], 0, 0, 1);
                 }
+                fflush(stdout);
             }
         }
     }
