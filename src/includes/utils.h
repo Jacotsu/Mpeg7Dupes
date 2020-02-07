@@ -13,6 +13,7 @@
 #define STATUS_END_REACHED 1
 #define STATUS_BEGIN_REACHED 2
 
+#define MAX_PATH_LENGTH 320
 
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -29,8 +30,8 @@
 
 
 struct fileIndex {
-    long int indexA, indexB;
-    FILE *fileList;
+    long int indexA, indexB, maxIndex;
+    char *pathsMatrix;
 };
 
 typedef struct BoundedCoarseSignature {
@@ -44,12 +45,15 @@ typedef struct BoundedCoarseSignature {
 int
 initFileIterator(struct fileIndex *fileIndex, char *fileListName);
 
+unsigned int
+getNumberOfLinesFromFilename(char *filename);
+
 int
 terminateFileIterator(struct fileIndex *fileIndex);
 
 int
 nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
-    char *destBuffer2, int maxLen);
+    char *destBuffer2);
 
 char*
 padStr(char *str, char *buffer, int maxLen, char padChar);

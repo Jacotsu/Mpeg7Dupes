@@ -5,35 +5,48 @@
 int
 initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     Assert(fileIndex);
-    fileIndex->fileList = fopen(fileListName, "r");
-    LoggedAssert(fileIndex->fileList, "Failed to open %s", fileListName);
-    fileIndex->indexA = ftell(fileIndex->fileList);
-    fileIndex->indexB = ftell(fileIndex->fileList);
+    FILE *listFile = fopen(fileListName, "r");
+    Assert(listFile);
+    fileIndex->indexA = 0;
+    fileIndex->indexB = 1;
+    fileIndex->maxIndex = getNumberOfLinesFromFilename(fileListName);
 
+    // Max path length, 320 chars should be enough for most cases
+    // To save more memory the paths could be allocated on request
+    // 10 000 file paths should use 3 200 000 chars (3.2 kb)
+    char* pathsMatrix = (char*) malloc(fileIndex->maxIndex*MAX_PATH_LENGTH);
+
+    for (unsigned int i = 0; i < fileIndex->maxIndex; ++i) {
+        fgets(&pathsMatrix[MAX_PATH_LENGTH*i], MAX_PATH_LENGTH, listFile);
+        strtok(&pathsMatrix[MAX_PATH_LENGTH*i], "\n");
+    }
+
+    fileIndex->pathsMatrix = pathsMatrix;
+    fclose(listFile);
+    Assert(fileIndex->maxIndex);
     return 1;
 }
 
 unsigned int
-getNumberOfLinesFromIterator(struct fileIndex *fileIndex) {
-    Assert(fileIndex->fileList);
-    long currentIndex = ftell(fileIndex->fileList);
-    unsigned int lineNumber = 0;
-    char chr = EOF;
+getNumberOfLinesFromFilename(char *filename) {
+    Assert(filename);
+    FILE *listFile = fopen(filename, "r");
+    unsigned int numbOfEntries = 0;
+    char chr = 0;
+    Assert(listFile);
 
-    do {
-        chr = getc(fileIndex->fileList);
+    while (!feof(listFile)) {
+        chr = getc(listFile);
         if (chr == '\n')
-            ++lineNumber;
-    } while (chr != EOF);
-
-    fseek(fileIndex->fileList, currentIndex, SEEK_SET);
-    return lineNumber;
+            ++numbOfEntries;
+    }
+    fclose(listFile);
+    return numbOfEntries;
 }
 
 int
 terminateFileIterator(struct fileIndex *fileIndex) {
-    Assert(fileIndex);
-    fclose(fileIndex->fileList);
+    free(fileIndex->pathsMatrix);
     return 1;
 }
 
@@ -41,38 +54,25 @@ terminateFileIterator(struct fileIndex *fileIndex) {
 // This function iterates over all the combinations of the lines
 // in the file list
 int
-nextFileIteration(struct fileIndex *fileIndex,
-    char *destBuffer, char *destBuffer2, int maxLen) {
-    Assert(fileIndex);
+nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
+    char *destBuffer2) {
 
-    if (feof(fileIndex->fileList)) {
-        fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
-        fgets (destBuffer, maxLen, fileIndex->fileList);
-        // Remove newlines from path
-        strtok(destBuffer, "\n");
-        if (!feof(fileIndex->fileList)) {
-            fileIndex->indexA = ftell(fileIndex->fileList);
-            fgets (destBuffer2, maxLen, fileIndex->fileList);
-            strtok(destBuffer2, "\n");
-            if (!feof(fileIndex->fileList)) {
-                fileIndex->indexB = ftell(fileIndex->fileList);
-                return 1;
-            }
-        }
-    } else {
-        fseek(fileIndex->fileList, fileIndex->indexA, SEEK_SET);
-        fgets (destBuffer, maxLen, fileIndex->fileList);
-        strtok(destBuffer, "\n");
-
-        if (!feof(fileIndex->fileList)) {
-            fseek(fileIndex->fileList, fileIndex->indexB, SEEK_SET);
-            fgets (destBuffer2, maxLen, fileIndex->fileList);
-            strtok(destBuffer2, "\n");
-            fileIndex->indexB = ftell(fileIndex->fileList);
-            return 1;
-        }
+    if (fileIndex->indexA >= fileIndex->maxIndex) {
+        return 0;
     }
-    return 0;
+
+    if (fileIndex->indexB >= fileIndex->maxIndex) {
+        ++fileIndex->indexA;
+        fileIndex->indexB = fileIndex->indexA + 1;
+        return nextFileIteration(fileIndex, destBuffer, destBuffer2);
+    } else {
+        strcpy(destBuffer, &fileIndex->pathsMatrix[fileIndex->indexA*\
+            MAX_PATH_LENGTH]);
+        strcpy(destBuffer2, &fileIndex->pathsMatrix[fileIndex->indexB*\
+            MAX_PATH_LENGTH]);
+        fileIndex->indexB++;
+    }
+    return 1;
 }
 
 char*

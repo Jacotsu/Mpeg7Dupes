@@ -15,7 +15,7 @@ main(int argc, char **argv) {
 
     slog_info(4, "Logging initialized");
     // 0    panic
-    // 1    fatal
+
     // 2    error
     // 3    warn
     // 4    info
@@ -49,11 +49,39 @@ main(int argc, char **argv) {
 
     if (args.listFile) {
         struct fileIndex index;
-        char file1[200], file2[200];
+        char file1[MAX_PATH_LENGTH], file2[MAX_PATH_LENGTH];
+
         initFileIterator(&index, args.listFile);
 
-        while (nextFileIteration(&index, file1, file2, 200))
+        // Code duplication, can be improved
+        while (nextFileIteration(&index, file1, file2)) {
             printf("%s %s\n", file1, file2);
+
+            binary_import(&scontexts[0], file1);
+            printStreamContext(&scontexts[0]);
+
+            binary_import(&scontexts[1], file2);
+            printStreamContext(&scontexts[1]);
+
+            slog_debug(6, "Processing %s\t%s", file1, file2);
+
+            result = lookup_signatures(&sigContext, &scontexts[0],\
+                &scontexts[1], sigContext.mode);
+
+            int i = index.indexA;
+            int j = index.indexB;
+            if (j == i + 1) {
+                if (index.maxIndex - j > 1) {
+                    printFunctionPointer(&result, file1, file2, 1, 0, 1);
+                } else {
+                    printFunctionPointer(&result, file1, file2, 1, 0, 0);
+                }
+            } else if (j == index.maxIndex - 1) {
+                printFunctionPointer(&result, file1, file2, 0, 1, 0);
+            } else {
+                printFunctionPointer(&result, file1, file2, 0, 0, 1);
+            }
+        }
 
         terminateFileIterator(&index);
     } else {
@@ -92,3 +120,4 @@ main(int argc, char **argv) {
 
     return 0;
 }
+
