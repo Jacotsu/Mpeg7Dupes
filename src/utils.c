@@ -8,7 +8,7 @@ initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     FILE *listFile = fopen(fileListName, "r");
     Assert(listFile);
     fileIndex->indexA = 0;
-    fileIndex->indexB = 1;
+    fileIndex->indexB = 0;
     fileIndex->maxIndex = getNumberOfLinesFromFilename(fileListName);
 
     // Max path length, 320 chars should be enough for most cases
@@ -57,6 +57,8 @@ int
 nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
     char *destBuffer2) {
 
+    fileIndex->indexB++;
+
     if (fileIndex->indexA >= fileIndex->maxIndex) {
         return 0;
     }
@@ -70,7 +72,6 @@ nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
             MAX_PATH_LENGTH]);
         strcpy(destBuffer2, &fileIndex->pathsMatrix[fileIndex->indexB*\
             MAX_PATH_LENGTH]);
-        fileIndex->indexB++;
     }
     return 1;
 }

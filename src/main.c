@@ -55,8 +55,6 @@ main(int argc, char **argv) {
 
         // Code duplication, can be improved
         while (nextFileIteration(&index, file1, file2)) {
-            printf("%s %s\n", file1, file2);
-
             binary_import(&scontexts[0], file1);
             printStreamContext(&scontexts[0]);
 
