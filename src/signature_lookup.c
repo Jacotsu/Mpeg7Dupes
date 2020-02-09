@@ -46,14 +46,11 @@
 static void
 fill_l1distlut(uint8_t lut[])
 {
-    int i, j, tmp_i, tmp_j,count;
-    uint8_t dist;
-
-    for (i = 0, count = 0; i < 242; i++) {
-        for (j = i + 1; j < 243; j++, count++) {
+    for (int i = 0, count = 0; i < 242; ++i) {
+        for (int j = i + 1; j < 243; ++j, ++count) {
             /* ternary distance between i and j */
-            dist = 0;
-            tmp_i = i; tmp_j = j;
+            uint8_t dist = 0;
+            int tmp_i = i, tmp_j = j;
             do {
                 dist += FFABS((tmp_j % 3) - (tmp_i % 3));
                 tmp_j /= 3;
@@ -69,8 +66,8 @@ intersection_word(
 	const uint8_t *first,
 	const uint8_t *second)
 {
-    unsigned int val=0,i;
-    for (i = 0; i < 28; i += 4) {
+    unsigned int val=0;
+    for (unsigned int i = 0; i < 28; i += 4) {
         val += av_popcount( (first[i]   & second[i]  ) << 24 |
                             (first[i+1] & second[i+1]) << 16 |
                             (first[i+2] & second[i+2]) << 8  |
@@ -87,8 +84,8 @@ union_word(
 	const uint8_t *first,
 	const uint8_t *second)
 {
-    unsigned int val=0,i;
-    for (i = 0; i < 28; i += 4) {
+    unsigned int val=0;
+    for (unsigned int i = 0; i < 28; i += 4) {
         val += av_popcount( (first[i]   | second[i]  ) << 24 |
                             (first[i+1] | second[i+1]) << 16 |
                             (first[i+2] | second[i+2]) << 8  |
@@ -106,14 +103,12 @@ get_l1dist(
 	const uint8_t *first,
 	const uint8_t *second)
 {
-    unsigned int i;
     unsigned int dist = 0;
-    uint8_t f, s;
 
-    for (i = 0; i < SIGELEM_SIZE/5; i++) {
+    for (unsigned int i = 0; i < SIGELEM_SIZE/5; ++i) {
         if (first[i] != second[i]) {
-            f = first[i];
-            s = second[i];
+            uint8_t f = first[i];
+            uint8_t s = second[i];
             if (f > s) {
                 /* little variation of gauss sum formula */
                 dist += sc->l1distlut[243*242/2 - (243-s)*(242-s)/2 + f - s - 1];
@@ -135,9 +130,12 @@ get_jaccarddist(
 	CoarseSignature *first,
 	CoarseSignature *second)
 {
-    int jaccarddist, i, composdist = 0, cwthcount = 0;
-    for (i = 0; i < 5; i++) {
-        if ((jaccarddist = intersection_word(first->data[i], second->data[i])) > 0) {
+    int composdist = 0, cwthcount = 0;
+    for (int i = 0; i < 5; i++) {
+        unsigned int jaccarddist = intersection_word(first->data[i],\
+            second->data[i]);
+
+        if (jaccarddist > 0) {
             jaccarddist /= union_word(first->data[i], second->data[i]);
         }
         if (jaccarddist >= sc->thworddist) {

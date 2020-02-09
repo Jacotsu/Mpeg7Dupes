@@ -146,8 +146,8 @@ binary_import(StreamContext *sc, const char* filename)
     skip_bits(&bitContext, 1);
 
 
-    sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
-            sizeof(FineSignature));
+    sc->finesiglist = (FineSignature*) malloc(sc->lastindex*\
+        sizeof(FineSignature));
     LoggedAssert(sc->finesiglist,\
         "Could not allocate FineSignatures memory buffer");
 
@@ -209,9 +209,10 @@ binary_import(StreamContext *sc, const char* filename)
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
         // O = n^2 probably it can be done faster
-        for (unsigned int j = 0; sc->finesiglist[j].pts <= bCs->lastPts &&\
-                j < sc->lastindex; ++j) {
+        for (unsigned int j = 0;  j < sc->lastindex  &&\
+            sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
+
 
             // THIS CODE IS WRONG
             if (fs->pts >= bCs->firstPts && fs->pts <= bCs->lastPts) {

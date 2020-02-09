@@ -134,7 +134,7 @@ typedef struct SignatureContext {
     int nb_inputs;
     char *filename;
     int format;
-    int thworddist;
+    unsigned int thworddist;
     int thcomposdist;
     int thl1;
     int thdi;
