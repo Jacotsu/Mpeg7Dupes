@@ -1,8 +1,8 @@
-LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
+LIBS  = -lasan -lslog -lpthread -lm -lavcodec -lavfilter
 INCLUDES = -I src/includes -I /usr/include/x86_64-linux-gnu
 CFLAGS = -Wall -Wextra -std=c11
-CRELEASEFLAGS = -O1
-CDEBUGFLAGS = -g3
+CRELEASEFLAGS = -O2 -fsanitize=address
+CDEBUGFLAGS = -g3 -fsanitize=address
 
 BUILD_DIR = build
 BIN_DIR = bin
