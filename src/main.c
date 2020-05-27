@@ -6,9 +6,10 @@ int
 main(int argc, char **argv) {
     MatchingInfo result = {0};
     StreamContext scontexts[NUM_OF_INPUTS] = { 0 };
-    void (*printFunctionPointer)(MatchingInfo *info, char *file1, char *file2,\
-    int isFirst, int isLast, int isMoreThanOne) = printBeautiful;
-;
+    void (*printFunctionPointer)(MatchingInfo *info, StreamContext* sc,\
+        char *file1, char *file2, int isFirst, int isLast, int isMoreThanOne)\
+        = printBeautiful;
+
 
     slog_init("logfile", "slog.cfg", 5, 1);
 	args = parseArguments(argc, argv);
@@ -70,18 +71,24 @@ main(int argc, char **argv) {
             int j = index.indexB;
             if (j == i + 1) {
                 if (index.maxIndex - j > 1) {
-                    printFunctionPointer(&result, file1, file2, 1, 0, 1);
+                    printFunctionPointer(&result, scontexts, file1, file2, 1,\
+                        0, 1);
                 } else {
-                    printFunctionPointer(&result, file1, file2, 1, 0, 0);
+                    printFunctionPointer(&result, scontexts, file1, file2, 1,\
+                        0, 0);
                 }
             } else if (j == index.maxIndex - 1) {
-                printFunctionPointer(&result, file1, file2, 0, 1, 0);
+                printFunctionPointer(&result, scontexts, file1, file2, 0,\
+                    1, 0);
             } else {
-                printFunctionPointer(&result, file1, file2, 0, 0, 1);
+                printFunctionPointer(&result, scontexts, file1, file2, 0,\
+                    0, 1);
             }
 
             fflush(stdout);
+            signature_unload(&scontexts[1]);
         }
+        signature_unload(&scontexts[0]);
 
         terminateFileIterator(&index);
     } else {
@@ -97,23 +104,27 @@ main(int argc, char **argv) {
                 result = lookup_signatures(&sigContext, &scontexts[0],\
                     &scontexts[1], sigContext.mode);
 
+
                 if (j == i + 1) {
                     if (args.numberOfPaths - j > 1) {
-                        printFunctionPointer(&result, args.filePaths[i],
-                            args.filePaths[j], 1, 0, 1);
+                        printFunctionPointer(&result, scontexts,\
+                            args.filePaths[i], args.filePaths[j], 1, 0, 1);
                     } else {
-                        printFunctionPointer(&result, args.filePaths[i],
-                            args.filePaths[j], 1, 0, 0);
+                        printFunctionPointer(&result, scontexts,\
+                            args.filePaths[i], args.filePaths[j], 1, 0, 0);
                     }
                 } else if (j == args.numberOfPaths - 1) {
-                    printFunctionPointer(&result, args.filePaths[i],
-                        args.filePaths[j], 0, 1, 0);
+                    printFunctionPointer(&result, scontexts,\
+                        args.filePaths[i], args.filePaths[j], 0, 1, 0);
                 } else {
-                    printFunctionPointer(&result, args.filePaths[i],
-                        args.filePaths[j], 0, 0, 1);
+                    printFunctionPointer(&result, scontexts,\
+                        args.filePaths[i], args.filePaths[j], 0, 0, 1);
                 }
+
                 fflush(stdout);
+                signature_unload(&scontexts[1]);
             }
+            signature_unload(&scontexts[0]);
         }
     }
     slog_info(4, "Signature processing finished");

@@ -11,11 +11,20 @@ void
 printCSVHeader();
 
 void
-printBeautiful(MatchingInfo *info, char *file1, char *file2,\
+printBeautiful(MatchingInfo *info, StreamContext* sc, char *file1,\
+	char *file2, int isFirst, int isLast, int isMoreThanOne);
+
+void
+printCSV(MatchingInfo *info, StreamContext* sc, char *file1, char *file2,\
     int isFirst, int isLast, int isMoreThanOne);
 
 void
-printCSV(MatchingInfo *info, char *file1, char *file2,\
-    int isFirst, int isLast, int isMoreThanOne);
+printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse);
+
+void
+printCoarseSigList(CoarseSignature *list);
+
+void
+printStreamContext(StreamContext *sc);
 
 #endif

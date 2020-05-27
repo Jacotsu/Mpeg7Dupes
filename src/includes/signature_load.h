@@ -18,10 +18,12 @@
 #include "utils.h"
 #include "customAssert.h"
 #include "ArgumentParsing.h"
-#include "signature_load.h"
 
 
 void
 binary_import(StreamContext*,const char*);
+
+void
+signature_unload(StreamContext *sc);
 
 #endif

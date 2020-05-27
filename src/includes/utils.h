@@ -58,15 +58,6 @@ nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
 char*
 padStr(char *str, char *buffer, int maxLen, char padChar);
 
-void
-printFineSigList(FineSignature *list, FineSignature *end, int lastCoarse);
-
-void
-printCoarseSigList(CoarseSignature *list);
-
-void
-printStreamContext(StreamContext *sc);
-
 int
 fineSignatureCmp(const void *p1, const void *p2);
 

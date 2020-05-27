@@ -28,6 +28,8 @@
 #define FF_QSCALE_TYPE_H264  2
 #define FF_QSCALE_TYPE_VP56  3
 
+#include <math.h>
+
 #include "signature.h"
 #include "customAssert.h"
 
@@ -68,6 +70,7 @@ intersection_word(
 {
     unsigned int val=0;
     for (unsigned int i = 0; i < 28; i += 4) {
+
         val += av_popcount( (first[i]   & second[i]  ) << 24 |
                             (first[i+1] & second[i+1]) << 16 |
                             (first[i+2] & second[i+2]) << 8  |
@@ -136,6 +139,7 @@ get_jaccarddist(
             second->data[i]);
 
         if (jaccarddist > 0) {
+
             jaccarddist /= union_word(first->data[i], second->data[i]);
         }
         if (jaccarddist >= sc->thworddist) {
@@ -211,15 +215,11 @@ get_matching_parameters(
         {.size = 0, .dist = 9999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
 
 
-    /* houghspace */
+    /* initialize houghspace */
     // Removed malloc/calloc to avoid useless memory allocation
     // when plenty of space is avaiable in the stack
-
-    /* initialize houghspace */
-    // +10 to avoid stack smashing error, probably the following code
-    // accidentally tries to access reserved stack zones
     // designated initializer notation, removes initialization loops
-    hspace_elem hspace[MAX_FRAMERATE + 10][HOUGH_MAX_OFFSET + 10] = { \
+    hspace_elem hspace[MAX_FRAMERATE][HOUGH_MAX_OFFSET] = { \
         [0 ... MAX_FRAMERATE-1] = \
             { [0 ... HOUGH_MAX_OFFSET-1] = {.score = 0, .dist = 99999} }
     };
@@ -295,11 +295,12 @@ get_matching_parameters(
             for (unsigned int j = 0; j < HOUGH_MAX_OFFSET; j++) {
                 if (hmax < hspace[i][j].score) {
                     if (c == NULL) {
-                        c = (MatchingInfo*) malloc(sizeof(MatchingInfo));
+                        c = (MatchingInfo*) calloc(1, sizeof(MatchingInfo));
                         LoggedAssert(c, "Could not allocate memory");
                         cands = c;
                     } else {
-                        c->next = (MatchingInfo*) malloc(sizeof(MatchingInfo));
+                        c->next = (MatchingInfo*) calloc(1, \
+                                sizeof(MatchingInfo));
                         LoggedAssert(c->next, "Could not allocate memory");
                         c = c->next;
                     }
@@ -442,7 +443,7 @@ evaluate_parameters(
     int fcount = 0, goodfcount = 0, gooda = 0, goodb = 0;
     double meandist, minmeandist = bestmatch.meandist;
     int tolerancecount = 0;
-    FineSignature *a, *b, *aprev, *bprev;
+    FineSignature *a = NULL, *b = NULL, *aprev = NULL, *bprev = NULL;
     int status = STATUS_NULL;
 
     for (; infos != NULL; infos = infos->next) {
@@ -544,9 +545,8 @@ evaluate_parameters(
 static void
 sll_free(MatchingInfo *sll)
 {
-    void *tmp;
     while (sll) {
-        tmp = sll;
+        void *tmp = sll;
         sll = sll->next;
         free(tmp);
     }
@@ -559,9 +559,9 @@ lookup_signatures(
 	StreamContext *second,
 	int mode)
 {
-    CoarseSignature *cs, *cs2;
-    MatchingInfo *infos;
-    MatchingInfo bestmatch;
+    CoarseSignature *cs = NULL, *cs2 = NULL;
+    MatchingInfo *infos = NULL;
+    MatchingInfo bestmatch = {0};
 
     cs = first->coarsesiglist;
     cs2 = second->coarsesiglist;
@@ -574,16 +574,16 @@ lookup_signatures(
     fill_l1distlut(sc->l1distlut);
 
     /* stage 1: coarsesignature matching */
-    if (find_next_coarsecandidate(sc, second->coarsesiglist, &cs, &cs2, 1) == 0)
+    if (!find_next_coarsecandidate(sc, second->coarsesiglist, &cs, &cs2, 1))
         return bestmatch; /* no candidate found */
+
     do {
         // No empty coarse signatures allowed
-        if (cs->first && cs->last && cs2->first && cs2->last) {
+        if (cs->first && cs2->first) {
             slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
                 "frame: %" PRIu32 " and %" PRIu32,
                 cs->first->index, cs2->first->index);
             /* stage 2: l1-distance and hough-transform */
-            slog_debug(6, "Stage 2: calculate matching parameters");
             infos = get_matching_parameters(sc, cs->first, cs2->first);
             for (MatchingInfo *i = infos; i != NULL; i = i->next) {
                 slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
@@ -591,18 +591,18 @@ lookup_signatures(
                     i->second->index, i->framerateratio, i->offset);
             }
             /* stage 3: evaluation */
-            slog_debug(6,"Stage 3: evaluate");
             if (infos) {
                 bestmatch = evaluate_parameters(sc, infos, bestmatch, mode);
-                slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
-                    PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",
-                    bestmatch.first->index, bestmatch.second->index,\
-                    bestmatch.framerateratio, bestmatch.offset, bestmatch.score, \
-                    bestmatch.matchframes);
+                if (bestmatch.first && bestmatch.second)
+                    slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
+                        PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",
+                        bestmatch.first->index, bestmatch.second->index,\
+                        bestmatch.framerateratio, bestmatch.offset, bestmatch.score, \
+                        bestmatch.matchframes);
                 sll_free(infos);
             }
         }
-    } while (find_next_coarsecandidate(sc, second->coarsesiglist, &cs, &cs2, 0) && !bestmatch.whole);
+    } while (find_next_coarsecandidate(sc, second->coarsesiglist,\
+                &cs, &cs2, 0) && !bestmatch.whole);
     return bestmatch;
-
 }

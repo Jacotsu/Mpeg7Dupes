@@ -1,4 +1,5 @@
 #include "signature_load.h"
+#include "put_bits.h"
 
 
 void
@@ -8,12 +9,10 @@ binary_import(StreamContext *sc, const char* filename)
     unsigned int rResult = 0, fileLength = 0, paddedLength = 0,\
         numOfSegments = 0;
     uint8_t *buffer = NULL;
-    //StreamContext *sc = NULL;
     GetBitContext bitContext = { 0 };
 
     slog_debug(6, "Loading signature from: %s", filename);
 
-    //sc = (StreamContext*) calloc(1, sizeof(StreamContext));
     Assert(sc);
 
     f = fopen(filename, "rb");
@@ -146,8 +145,8 @@ binary_import(StreamContext *sc, const char* filename)
     skip_bits(&bitContext, 1);
 
 
-    sc->finesiglist = (FineSignature*) malloc(sc->lastindex*\
-        sizeof(FineSignature));
+    sc->finesiglist = (FineSignature*) calloc(sc->lastindex,\
+            sizeof(FineSignature));
     LoggedAssert(sc->finesiglist,\
         "Could not allocate FineSignatures memory buffer");
 
@@ -213,12 +212,10 @@ binary_import(StreamContext *sc, const char* filename)
             sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
 
-
-            // THIS CODE IS WRONG
-            if (fs->pts >= bCs->firstPts && fs->pts <= bCs->lastPts) {
+            if (fs->pts >= bCs->firstPts) {
                 //slog_debug(6, "%d %d %d",bCs->firstPts, fs->pts, bCs->lastPts);
                 // Check if the fragment's pts is inside coarse signature
-                // bounds
+                // bounds. Upper bound is checked in for loop
                 if (!bCs->cSign->first) {
                     bCs->cSign->first = fs;
                 }
@@ -247,4 +244,11 @@ binary_import(StreamContext *sc, const char* filename)
 
     free(bCoarseList);
     free(buffer);
+}
+
+void
+signature_unload(StreamContext *sc)
+{
+    free(sc->coarsesiglist);
+    free(sc->finesiglist);
 }

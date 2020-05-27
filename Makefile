@@ -3,7 +3,6 @@ INCLUDES = -I src/includes -I /usr/include/x86_64-linux-gnu
 CFLAGS = -Wall -Wextra -std=c11
 CRELEASEFLAGS = -O2 -fsanitize=address
 CDEBUGFLAGS = -g3 -fsanitize=address
-
 BUILD_DIR = build
 BIN_DIR = bin
 
@@ -37,12 +36,13 @@ optiDebug: buildDirs
 
 link: ${OBJS}
 	@echo Linking
+
 ifndef DEBUG
 	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesRelease.elf ${LIBS}
 else
 
 ifndef OPTIDEBUG
-	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesOptiDebug.elf ${LIBS}
+	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesDebug.elf ${LIBS}
 else
 	$(CC) $^ -o ${BIN_DIR}/mpeg7DupesOptiDebug.elf ${LIBS}
 endif
@@ -59,9 +59,9 @@ ifndef DEBUG
 else
 
 ifndef OPTIDEBUG
-	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} -Og $< -o $@ ${INCLUDES}
+	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS}  $< -o $@ ${INCLUDES}
 else
-	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} -Og $< -o $@ ${INCLUDES}
 endif
 
 endif
