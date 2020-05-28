@@ -8,15 +8,17 @@ MpegDupes Is a tool built for comparing binary MPEG7 signatures that have been g
 ```
 sudo apt-get install build-essential libavcodec-dev libavfilter-dev
 ```
-### Install Mpeg7Dupes
+**YOUR GCC VERSION MUST SUPPORT OPENMP FOR CSV MODE**
+
+### Compile Mpeg7Dupes
 ```
 git clone https://github.com/Jacotsu/Mpeg7Dupes
 cd Mpeg7Dupes
-make release
+make release -l$(nproc)
 ```
 
 ### Optional: integration with shell
-Copy `./bin/mpeg7DupesRelease.elf` in `$HOME/.local/bin` or `/usr/local/bin`
+Copy `./bin/mpeg7Dupes.elf` in `$HOME/.local/bin` or `/usr/local/bin`
 
 # Usage
 
@@ -28,18 +30,25 @@ Keep in mind that only binary signatures are supported at the moment.
 
 Then compare the signatures with the following command
 ```
-./bin/mpeg7DupesRelease.elf {signature 1} {signature 2} ...
+./bin/mpeg7Dupes.elf {signature file 1} {signature file 2} ...
 ```
 
 Or create a `list` of files, like the following
 ```
-{path to file 1}
-{path to file 2}
-{path to file 3}
+{path to signature file 1}
+{path to signature file 2}
+{path to signature file 3}
 ...
-{path to file n}
+{path to signature file n}
 ```
 And then launch mpeg7Dupes
 ```
-./bin/mpeg7DupesRelease.elf -l list_of_files
+./bin/mpeg7Dupes.elf -l list_of_files
+```
+
+## CSV output
+The following command will print in CSV to the stdout, due to a slog limitation (can't redirect logging to
+stderr) the first line must be manually deleted (can be easily done with bash).
+```
+./bin/mpeg7Dupes.elf -f csv {signature file 1} {signature file 2} ...
 ```
