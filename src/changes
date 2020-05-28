@@ -1,0 +1,10 @@
+Improved Makefile
+Fixed missing square bracket in printe time
+Fixed missing th_dc argument initialization
+Aligned "whole" column text to the right
+Set min default matching frames number to 60 (2s if it's a 30fps video)
+Cleaned upp some code
+Squashed some bugs in the file iteration code
+Fixed segfault in csv mode
+Fixed wrong option parsing code
+Set more sane defaults for options

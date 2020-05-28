@@ -45,6 +45,13 @@ typedef struct BoundedCoarseSignature {
 int
 initFileIterator(struct fileIndex *fileIndex, char *fileListName);
 
+int
+initFileIteratorFromCmdLine(struct fileIndex *fileIndex,
+	char **argv, int argc);
+
+char *
+getIteratorIndexFilePath(struct fileIndex *fileIndex, char indexSelector);
+
 unsigned int
 getNumberOfLinesFromFilename(char *filename);
 
@@ -52,13 +59,18 @@ int
 terminateFileIterator(struct fileIndex *fileIndex);
 
 int
-nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
-    char *destBuffer2);
+nextFileIteration(struct fileIndex *fileIndex);
+
+int
+nextFileIterationByIndex(struct fileIndex *fileIndex, char index);
 
 char*
 padStr(char *str, char *buffer, int maxLen, char padChar);
 
 int
 fineSignatureCmp(const void *p1, const void *p2);
+
+unsigned int
+getFileSize(const char *filename);
 
 #endif

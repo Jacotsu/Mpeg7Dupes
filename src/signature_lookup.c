@@ -45,6 +45,7 @@
 #define STATUS_END_REACHED 1
 #define STATUS_BEGIN_REACHED 2
 
+
 static void
 fill_l1distlut(uint8_t lut[])
 {
@@ -206,6 +207,7 @@ get_matching_parameters(
 	FineSignature *first,
 	FineSignature *second)
 {
+    // This function mst be optimized
     FineSignature *f;
     size_t k, l, hmax = 0, score;
     int framerate, offset, l1dist;

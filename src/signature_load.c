@@ -1,5 +1,4 @@
 #include "signature_load.h"
-#include "put_bits.h"
 
 
 void
@@ -19,10 +18,7 @@ binary_import(StreamContext *sc, const char* filename)
     LoggedAssert(f, "Can't open %s", filename);
 
     // We get to total file length
-    fseek(f, 0, SEEK_END);
-    fileLength = ftell(f);
-    LoggedAssert(fileLength > 0, "Input file is empty");
-    fseek(f, 0, SEEK_SET);
+    fileLength = getFileSize(filename);
 
     // Cast to float is necessary to avoid int division
     paddedLength = ceil(fileLength / (float) AV_INPUT_BUFFER_PADDING_SIZE)*\

@@ -3,7 +3,7 @@
 void
 printBeautifulHeader () {
     char strBuffer[170] = { 0 };
-    printf("%46.46s %46.46s %9.9s %10.10s %10.10s %s\n",
+    printf("%46.46s %46.46s %9.9s %12.12s %12.12s %5.5s\n",
         padStr("First signature", strBuffer, 40, ' '),
         padStr("Second signature",  &strBuffer[40], 51, ' '),
         padStr("score",  &strBuffer[91], 9, ' '),
@@ -60,13 +60,14 @@ printCSVHeader () {
 void
 printCSV(MatchingInfo *info, StreamContext* sc, char *file1, char *file2,\
     int isFirst, int isLast, int isMoreThanOne) {
-    printf("%s,%s,%d,%f,%f,%d\n",
-            file1, file2,
-            info->score,
-            // pts is the frame number
-            ((double) info->first->pts * sc[0].time_base.num) / sc[0].time_base.den,
-            ((double) info->second->pts * sc[1].time_base.num) / sc[1].time_base.den,\
-            info->whole);
+    if (info->score)
+        printf("%s,%s,%d,%.2f,%.2f,%d\n",
+                file1, file2,
+                info->score,
+                // pts is the frame number
+                ((double) info->first->pts * sc[0].time_base.num) / sc[0].time_base.den,
+                ((double) info->second->pts * sc[1].time_base.num) / sc[1].time_base.den,\
+                info->whole);
 }
 
 void

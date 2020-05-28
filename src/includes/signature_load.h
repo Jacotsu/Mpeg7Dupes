@@ -9,6 +9,7 @@
 
 // FFMPEG downloaded headers
 #include "get_bits.h"
+#include "put_bits.h"
 #include "signature.h"
 
 // Libraries

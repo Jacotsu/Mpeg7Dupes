@@ -5,7 +5,7 @@ initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     Assert(fileIndex);
     FILE *listFile = fopen(fileListName, "r");
     Assert(listFile);
-    fileIndex->indexA = 0;
+    fileIndex->indexA = -1;
     fileIndex->indexB = 0;
     fileIndex->maxIndex = getNumberOfLinesFromFilename(fileListName);
 
@@ -22,6 +22,19 @@ initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     fileIndex->pathsMatrix = pathsMatrix;
     fclose(listFile);
     Assert(fileIndex->maxIndex);
+    return 1;
+}
+
+int
+initFileIteratorFromCmdLine(struct fileIndex *fileIndex,
+	char **argv, int argc) {
+    fileIndex->indexA = -1;
+    fileIndex->indexB = 0;
+    fileIndex->maxIndex = argc;
+
+    fileIndex->pathsMatrix = (char*) calloc(argc, MAX_PATH_LENGTH);
+    for (int i = 0; i < argc; ++i)
+        strcpy(&fileIndex->pathsMatrix[i*MAX_PATH_LENGTH], argv[i]);
     return 1;
 }
 
@@ -48,13 +61,33 @@ terminateFileIterator(struct fileIndex *fileIndex) {
     return 1;
 }
 
+
+int
+nextFileIterationByIndex(struct fileIndex *fileIndex, char indexSelector) {
+    switch (indexSelector) {
+        case 'a': {
+            ++fileIndex->indexA;
+            if (fileIndex->indexA >= fileIndex->maxIndex)
+                return 0;
+            break;
+        }
+        case 'b': {
+            ++fileIndex->indexB;
+            if (fileIndex->indexB >= fileIndex->maxIndex) {
+                fileIndex->indexB = fileIndex->indexA + 1;
+                return 0;
+            }
+            break;
+        }
+    }
+    return 1;
+}
+
 // Given a fileIndex struct
 // This function iterates over all the combinations of the lines
 // in the file list
 int
-nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
-    char *destBuffer2) {
-
+nextFileIteration(struct fileIndex *fileIndex) {
     fileIndex->indexB++;
 
     if (fileIndex->indexA >= fileIndex->maxIndex) {
@@ -63,15 +96,24 @@ nextFileIteration(struct fileIndex *fileIndex, char *destBuffer,
 
     if (fileIndex->indexB >= fileIndex->maxIndex) {
         ++fileIndex->indexA;
-        fileIndex->indexB = fileIndex->indexA + 1;
-        return nextFileIteration(fileIndex, destBuffer, destBuffer2);
-    } else {
-        strcpy(destBuffer, &fileIndex->pathsMatrix[fileIndex->indexA*\
-            MAX_PATH_LENGTH]);
-        strcpy(destBuffer2, &fileIndex->pathsMatrix[fileIndex->indexB*\
-            MAX_PATH_LENGTH]);
+        fileIndex->indexB = fileIndex->indexA;
+        return nextFileIteration(fileIndex);
     }
     return 1;
+}
+
+char *
+getIteratorIndexFilePath(struct fileIndex *fileIndex, char indexSelector){
+    int effectiveIndex = 0;
+    LoggedAssert(fileIndex->indexA >= 0 && fileIndex->indexB >= 0,
+        "File iterator next function not called!");
+    switch (indexSelector) {
+        case 'a': effectiveIndex = fileIndex->indexA*MAX_PATH_LENGTH;
+            break;
+        case 'b': effectiveIndex = fileIndex->indexB*MAX_PATH_LENGTH;
+            break;
+    }
+    return &fileIndex->pathsMatrix[effectiveIndex];
 }
 
 char*
@@ -106,3 +148,19 @@ fineSignatureCmp(const void* p1, const void* p2) {
     else
         return 1;
 };
+
+
+unsigned int
+getFileSize(const char *filename) {
+    int fileLength = 0;
+    FILE *f = NULL;
+    f = fopen(filename, "rb");
+    LoggedAssert(f, "Can't open %s", filename);
+    fseek(f, 0, SEEK_END);
+    fileLength = ftell(f);
+    fclose(f);
+    return fileLength;
+};
+
+
+
