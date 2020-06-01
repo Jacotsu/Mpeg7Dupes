@@ -17,9 +17,15 @@
 
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
+#define XSTR(A) STR(A)
+#define STR(A) #A
+
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // ffmpeg downloaded headers
 #include "signature.h"
@@ -72,5 +78,11 @@ fineSignatureCmp(const void *p1, const void *p2);
 
 unsigned int
 getFileSize(const char *filename);
+
+unsigned int
+getPathLastSlashPosition(const char *path);
+
+unsigned int
+buildDirectoryTree(const char *path);
 
 #endif

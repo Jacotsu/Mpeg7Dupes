@@ -163,4 +163,36 @@ getFileSize(const char *filename) {
 };
 
 
+unsigned int
+getPathLastSlashPosition(const char *path) {
+    unsigned int pathLen = strlen(path);
+    unsigned int lastSlashPosition = 0;
 
+    for (unsigned int i = 0; i < pathLen; ++i) {
+        if (i > 0) {
+            if (path[i] == '/' && path[i - 1] != '/')
+                lastSlashPosition = i;
+        } else {
+            if (path[i] == '/')
+                lastSlashPosition = i;
+        }
+    }
+    return lastSlashPosition;
+}
+
+
+unsigned int
+buildDirectoryTree(const char *path) {
+    char treePath[MAX_PATH_LENGTH] = {0};
+    unsigned int pathStrLen = strlen(path);
+
+    for (unsigned int j = 0; j < pathStrLen; ++j)
+        if (path[j] == '/') {
+            if (j != pathStrLen - 1) {
+                memcpy(treePath, path, j);
+                int status = mkdir(treePath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                LoggedAssert(status == 0, "Could not create path: %s", path);
+            }
+        }
+    return 1;
+}

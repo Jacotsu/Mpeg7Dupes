@@ -438,8 +438,7 @@ static MatchingInfo
 evaluate_parameters(
 	SignatureContext *sc,
 	MatchingInfo *infos,
-	MatchingInfo bestmatch,
-	int mode)
+	MatchingInfo bestmatch)
 {
     int dist, distsum = 0, bcount = 1, dir = DIR_NEXT;
     int fcount = 0, goodfcount = 0, gooda = 0, goodb = 0;
@@ -516,7 +515,7 @@ evaluate_parameters(
 
         if (meandist < minmeandist ||
                 status == (STATUS_END_REACHED | STATUS_BEGIN_REACHED) ||
-                (mode == MODE_FAST)){
+                (sc->mode == MODE_FAST)){
             minmeandist = meandist;
             /* bestcandidate in this iteration */
             bestmatch.meandist = meandist;
@@ -537,7 +536,7 @@ evaluate_parameters(
         }
 
         /* first matching sequence is enough, finding the best one is not necessary */
-        if (mode == MODE_FAST) {
+        if (sc->mode == MODE_FAST) {
             break;
         }
     }
@@ -558,8 +557,7 @@ MatchingInfo
 lookup_signatures(
 	SignatureContext *sc,
 	StreamContext *first,
-	StreamContext *second,
-	int mode)
+	StreamContext *second)
 {
     CoarseSignature *cs = NULL, *cs2 = NULL;
     MatchingInfo *infos = NULL;
@@ -594,7 +592,7 @@ lookup_signatures(
             }
             /* stage 3: evaluation */
             if (infos) {
-                bestmatch = evaluate_parameters(sc, infos, bestmatch, mode);
+                bestmatch = evaluate_parameters(sc, infos, bestmatch);
                 if (bestmatch.first && bestmatch.second)
                     slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
                         PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",

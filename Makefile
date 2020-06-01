@@ -62,18 +62,18 @@ ifdef DEBUG
 ifdef OPTIDEBUG
 	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS} -Og $< -o $@ ${INCLUDES}
 else ifdef NVDEBUG
-	$(CC) -c ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
+	$(CC) -c -g3 ${CFLAGS} ${CDEBUGFLAGS} $< -o $@ ${INCLUDES}
 else
-	$(CC) -c -D DEBUG ${CFLAGS} ${CDEBUGFLAGS}  $< -o $@ ${INCLUDES}
+	$(CC) -c -g3 -D DEBUG ${CFLAGS} ${CDEBUGFLAGS}  $< -o $@ ${INCLUDES}
 endif
 else
-	$(CC) -c  ${CFLAGS} ${CRELEASEFLAGS} $< -o $@ ${INCLUDES}
+	$(CC) -c  ${CFLAGS} ${CRELEASEFLAGS} $< -O2 -o $@ ${INCLUDES}
 endif
 
 link: compile
 	@echo Linking
 ifdef DEBUG
-	$(CC) -o ${EXE_PATH} ${OBJS} ${DEBUG_LIBS} ${CFLAGS} ${LIBS}
+	$(CC) -g3 -o ${EXE_PATH} ${OBJS} ${DEBUG_LIBS} ${CFLAGS} ${LIBS}
 else
 	$(CC) -o ${EXE_PATH} ${OBJS} ${CFLAGS} ${LIBS}
 endif

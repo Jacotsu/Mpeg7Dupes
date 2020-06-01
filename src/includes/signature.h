@@ -588,7 +588,6 @@ MatchingInfo
 lookup_signatures(
     SignatureContext*,
     StreamContext*,
-	StreamContext*,
-	int);
+	StreamContext*);
 \
 #endif /* AVFILTER_SIGNATURE_H */

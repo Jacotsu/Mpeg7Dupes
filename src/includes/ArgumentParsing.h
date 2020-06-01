@@ -27,12 +27,14 @@ enum formatTypes {
 struct arguments {
     int verbose;
     char *listFile;
+    char *sessionFile;
     enum lookup_mode mode;
     enum signatureType sigType;
     enum formatTypes outputFormat;
-	double thD, thDc, thXh, thDi, thIt;
+	double thD, thDc, thXh, thDi, thIt, minScore;
     char **filePaths;
     unsigned int numberOfPaths;
+    int useOpenMp;
 };
 
 // https://stackoverflow.com/questions/6669842/how-to-best-achieve-string-

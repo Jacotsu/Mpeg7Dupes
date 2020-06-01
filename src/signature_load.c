@@ -22,7 +22,7 @@ binary_import(StreamContext *sc, const char* filename)
 
     // Cast to float is necessary to avoid int division
     paddedLength = ceil(fileLength / (float) AV_INPUT_BUFFER_PADDING_SIZE)*\
-                   AV_INPUT_BUFFER_PADDING_SIZE;
+                   AV_INPUT_BUFFER_PADDING_SIZE + AV_INPUT_BUFFER_PADDING_SIZE;
     buffer = (uint8_t*) calloc(paddedLength, sizeof(uint8_t));
     LoggedAssert(buffer, "Could not allocate memory buffer");
 
@@ -34,7 +34,7 @@ binary_import(StreamContext *sc, const char* filename)
     f = NULL;
 
     // BE CAREFUL, THE LENGTH IS SPECIFIED IN BITS NOT BYTES
-    init_get_bits(&bitContext, buffer, 8*paddedLength);
+    init_get_bits(&bitContext, buffer, 8*fileLength);
     // libavcodec
 
     // Skip the following data:
@@ -166,6 +166,7 @@ binary_import(StreamContext *sc, const char* filename)
             fs->words[l] = get_bits(&bitContext, 8);
         }
 
+        // Crashes for some signature, it's a memory adding problems
         // framesignature
         for (unsigned int l = 0; l < SIGELEM_SIZE/5; l++) {
             fs->framesig[l] = get_bits(&bitContext, 8);
