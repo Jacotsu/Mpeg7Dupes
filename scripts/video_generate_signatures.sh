@@ -1,0 +1,1 @@
+/home/jacotsu/scripts/video_generate_signatures.sh
