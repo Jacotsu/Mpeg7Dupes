@@ -26,5 +26,9 @@ generate_signature () {
     fi
 }
 
-export -f generate_signature
-parallel generate_signature ::: "${@:1:$#-1}" ::: "$OUTDIR"
+#export -f generate_signature
+#parallel generate_signature ::: "${@:1:$#-1}" ::: "$OUTDIR"
+
+for file in "${@:1:$#-1}"; do
+    generate_signature "$file" "$OUTDIR"
+done
