@@ -9,9 +9,11 @@ OUTDIR="${@:$#}"
 
 mkdir -p "$OUTDIR"
 
-for file in "${@:1:$#-1}"; do
-    BASENAME=$(basename "$file")
-    SIGNATURE_FILE="$OUTDIR/$BASENAME.sig"
+# $1 file
+# $2 out dir
+generate_signature () {
+    BASENAME=$(basename "$1")
+    SIGNATURE_FILE="$2/$BASENAME.sig"
 
     echo "Processing $BASENAME signature"
 
@@ -22,4 +24,7 @@ for file in "${@:1:$#-1}"; do
 
         echo "Added $BASENAME signature"
     fi
-done
+}
+
+export -f generate_signature
+parallel generate_signature ::: "${@:1:$#-1}" ::: "$OUTDIR"
