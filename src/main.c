@@ -18,7 +18,10 @@ main(int argc, char **argv) {
     if (args.sessionFile)
         loadSession(&args, &index, args.sessionFile);
 
+
     signal(SIGINT, INThandler);
+    signal(SIGSEGV, SEGVhandler);
+
 
 	args = parseArguments(argc, argv);
 
@@ -179,11 +182,11 @@ processSignaturePair(
     return result;
 }
 
-void  INThandler(int sig)
+void
+INThandler(int sig)
 {
      char  c;
 
-     signal(sig, SIG_IGN);
      printf(" detected Do you really want to quit or save the session?"
         " [Yes/No/Save] ");
      c = getchar();
@@ -207,4 +210,13 @@ void  INThandler(int sig)
      // We have to reset the handler after every catch
      signal(SIGINT, INThandler);
      getchar(); // Get new line character
+}
+
+void
+SEGVhandler(int sig)
+{
+     slog_panic(0, "Segfault detected, saving session");
+     saveSession(&session,"segfaultedSession.sess");
+     // We crash this program, with no handlers!
+     raise(SIGSEGV);
 }
