@@ -1,6 +1,8 @@
 #ifndef CUSTOMASSERT
 #define CUSTOMASSERT
 
+#include <stdarg.h>
+
 #include "slog.h"
 
 // 0    panic
@@ -19,3 +21,9 @@
     exit(1);}
 
 #endif
+
+#define AssertFileExistence(x, ...)  {\
+    FILE *__fileToAssert = fopen(x, "rb");\
+    LoggedAssert(__fileToAssert, __VA_ARGS__);\
+    fclose(__fileToAssert);\
+    exit(1);}

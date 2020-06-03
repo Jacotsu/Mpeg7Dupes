@@ -35,6 +35,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                       break;
         case 'l': if (arg) arguments->listFile = arg; break;
         case 's': if (arg) arguments->sessionFile = arg; break;
+        case 'n': if (arg) arguments->incrementalFile = arg; break;
         case ARGP_KEY_ARG:
             break;
         case ARGP_KEY_INIT:
@@ -42,6 +43,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             arguments->verbose = 0;
             arguments->listFile = NULL;
             arguments->sessionFile = NULL;
+            arguments->incrementalFile = NULL;
             arguments->mode = MODE_FAST;
             arguments->sigType = BINARY;
             arguments->outputFormat = BEAUTIFUL;
@@ -80,28 +82,26 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 "Output format not supported");
 
             if (arguments->sessionFile) {
-                FILE *sessionFile = fopen(arguments->sessionFile, "rb");
-                LoggedAssert(sessionFile, "Session file not found");
-                fclose(sessionFile);
+                AssertFileExistence(arguments->sessionFile,
+                    "Session file not found");
+            }
+
+            if (arguments->sessionFile) {
+                AssertFileExistence(arguments->incrementalFile,
+                    "Incremental file list not found");
             }
 
             if (state->arg_num < 2 && !arguments->listFile) {
                 slog_error(2, "You should supply at least 2 files");
                 argp_usage(state);
             } else if (arguments->listFile){
-                FILE *listFile = fopen(arguments->listFile, "rb");
-                LoggedAssert(listFile, "List file not found");
-                // Count number of file entries, atleast 2 are needed
-                unsigned int numOfLines = 0;
-                do {
-                    char readChar = fgetc(listFile);
-                    if (readChar == '\n' || readChar == EOF)
-                        ++numOfLines;
-                } while (!feof(listFile) && numOfLines < 3);
-                LoggedAssert(numOfLines > 1, "File list invalid, atleast two "\
-                    "entries are required");
+                AssertFileExistence(arguments->listFile,
+                    "List file not found");
 
-                fclose(listFile);
+                // Count number of file entries, atleast 2 are needed
+                LoggedAssert(getNumberOfLinesFromFilename(arguments->listFile)
+                    >1, "File list invalid, atleast two entries are required");
+
             } else {
                 // First path is executable
                 arguments->numberOfPaths = state->arg_num;
@@ -109,10 +109,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     arguments->numberOfPaths;
 
                 for (unsigned int i = 0; i < arguments->numberOfPaths; ++i) {
-                    FILE *tmp = fopen(arguments->filePaths[i], "rb");
-                    LoggedAssert(tmp, "File %s not found, aborting",
+
+                    AssertFileExistence(arguments->filePaths[i],
+                        "File %s not found, aborting",
                         arguments->filePaths[i]);
-                    fclose(tmp);
                 }
             }
 

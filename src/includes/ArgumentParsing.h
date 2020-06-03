@@ -11,6 +11,7 @@
 #include "slog.h"
 #include "customAssert.h"
 #include "signature.h"
+#include "utils.h"
 
 
 
@@ -28,6 +29,7 @@ struct arguments {
     int verbose;
     char *listFile;
     char *sessionFile;
+    char *incrementalFile;
     enum lookup_mode mode;
     enum signatureType sigType;
     enum formatTypes outputFormat;
