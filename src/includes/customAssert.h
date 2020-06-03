@@ -25,5 +25,4 @@
 #define AssertFileExistence(x, ...)  {\
     FILE *__fileToAssert = fopen(x, "rb");\
     LoggedAssert(__fileToAssert, __VA_ARGS__);\
-    fclose(__fileToAssert);\
-    exit(1);}
+    fclose(__fileToAssert);}
