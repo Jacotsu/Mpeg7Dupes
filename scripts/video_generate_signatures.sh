@@ -18,7 +18,7 @@ generate_signature () {
     echo "Processing $BASENAME signature"
 
     if [ ! -f "$SIGNATURE_FILE" ]; then
-        ffmpeg -i "$file" -hide_banner -filter_complex \
+        ffmpeg -i "$1" -hide_banner -filter_complex \
             signature=detectmode=off:filename="$SIGNATURE_FILE":nb_inputs=1 \
             -f null -
 
