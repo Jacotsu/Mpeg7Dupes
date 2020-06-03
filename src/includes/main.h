@@ -29,7 +29,11 @@
 
 #define NUM_OF_INPUTS 2
 
-void     INThandler(int);
+void
+INThandler(int);
+
+void
+SEGVhandler(int);
 
 void
 processFiles(struct fileIndex *index, void (*printFunctionPointer)
