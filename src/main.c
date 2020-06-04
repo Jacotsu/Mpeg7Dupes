@@ -208,6 +208,8 @@ INThandler(int sig)
 
      printf(" detected Do you really want to quit or save the session?"
         " [Yes/No/Save] ");
+     fflush(stdout);
+
      c = getchar();
      switch (c) {
          case 'y':

@@ -4,6 +4,7 @@ int
 saveSessionPrompt(struct session* sess) {
     char sessionFilePath[MAX_PATH_LENGTH];
     printf("Please insert session destination path: ");
+    fflush(stdout);
     scanf("%s", sessionFilePath);
     // safer for overflows but buggy
     //fgets(sessionFilePath , MAX_PATH_LENGTH , stdin);
