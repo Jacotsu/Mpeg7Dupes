@@ -137,6 +137,8 @@ processFiles(struct fileIndex *index, void (*printFunctionPointer)
                 printFunctionPointer);
 
             signature_unload(&scontexts[1]);
+            fflush(stdout);
+
         }
         signature_unload(&scontextsBase[0]);
     }
