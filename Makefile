@@ -2,7 +2,7 @@ LIBS  = -lslog -lpthread -lm -lavcodec -lavfilter
 DEBUG_LIBS = -lasan
 INCLUDES = -I src/includes -I /usr/include/x86_64-linux-gnu
 CFLAGS = -Wall -Wextra -std=c11 -fopenmp
-CRELEASEFLAGS = -O2 -march=native
+CRELEASEFLAGS = -O2 -march=native -floop-unroll-and-jam
 CDEBUGFLAGS = -g3 -fsanitize=address
 BUILD_DIR = build
 BIN_DIR = bin
