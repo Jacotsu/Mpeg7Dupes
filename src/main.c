@@ -3,6 +3,8 @@
 struct arguments args = {0};
 struct session session = {0};
 
+void (*oldSEGVhandler)(int) = NULL;
+
 int
 main(int argc, char **argv) {
     struct fileIndex index = {0};
@@ -20,7 +22,7 @@ main(int argc, char **argv) {
 
 
     signal(SIGINT, INThandler);
-    signal(SIGSEGV, SEGVhandler);
+    oldSEGVhandler = signal(SIGSEGV, SEGVhandler);
 
 
 	args = parseArguments(argc, argv);
@@ -235,5 +237,6 @@ SEGVhandler(int sig)
      slog_panic(0, "Segfault detected, saving session");
      saveSession(&session,"segfaultedSession.sess");
      // We crash this program, with no handlers!
+     signal(SIGSEGV, oldSEGVhandler);
      raise(SIGSEGV);
 }
