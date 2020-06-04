@@ -174,15 +174,16 @@ printResult(
         Assert(printFunctionPointer);
 
         if (result->score >= minimumScore) {
-            int i = index->indexA;
-            int j = index->indexB;
+            unsigned int i = index->indexA;
+            unsigned int j = index->indexB;
+            unsigned int maxIndex = FFMAX(index->maxIndexA, index->maxIndexB);
             StreamContext *scontexts = sigContext->streamcontexts;
             char *filePath1 = &index->pathsMatrix[i*MAX_PATH_LENGTH];
             char *filePath2 = &index->pathsMatrix[j*MAX_PATH_LENGTH];
 
             if (j == i + 1) {
                 // Print first element
-                if (index->maxIndex - j > 1) {
+                if (maxIndex - j > 1) {
                     printFunctionPointer(result, scontexts, filePath1, filePath2,
                             1, 0, 1);
                     hasFirstBeenPrinted = 1;
@@ -191,7 +192,7 @@ printResult(
                             1, 0, 0);
                 }
                 hasFirstBeenPrinted = 1;
-            } else if (j == index->maxIndex - 1) {
+            } else if (j == maxIndex - 1) {
                 // Print last element
                 printFunctionPointer(result, scontexts, filePath1, filePath2,
                         0, 1, 0);
@@ -201,7 +202,7 @@ printResult(
                     printFunctionPointer(result, scontexts, filePath1, filePath2,
                             0, 0, 1);
                 else {
-                    if (index->maxIndex - j > 1) {
+                    if (maxIndex - j > 1) {
                         printFunctionPointer(result, scontexts, filePath1, filePath2,
                                 1, 0, 1);
                         hasFirstBeenPrinted = 1;

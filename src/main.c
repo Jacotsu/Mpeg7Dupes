@@ -51,16 +51,27 @@ main(int argc, char **argv) {
         printFunctionPointer = printBeautiful;
     }
 
-    if (args.listFile) {
+
+    if (args.listFile)
         initFileIterator(&index, args.listFile);
-        processFiles(&index, printFunctionPointer, args.useOpenMp);
-        terminateFileIterator(&index);
-    } else {
+    else
         initFileIteratorFromCmdLine(&index, args.filePaths,\
             args.numberOfPaths);
-        processFiles(&index, printFunctionPointer, args.useOpenMp);
+
+    if (args.incrementalFile) {
+        struct fileIndex incrementalIndex = {0};
+        struct fileIndex tmpIndex = {0};
+
+        slog_info(4, "Incremental mode selected");
+        initFileIterator(&incrementalIndex, args.incrementalFile);
+        tmpIndex = mergeFileIterators(&incrementalIndex, &index);
+        tmpIndex.maxIndexA = getNumberOfLinesFromFilename(args.incrementalFile);
         terminateFileIterator(&index);
+        index = tmpIndex;
     }
+
+    processFiles(&index, printFunctionPointer, args.useOpenMp);
+    terminateFileIterator(&index);
 
     if (args.sessionFile)
         deleteSession(args.sessionFile);
@@ -75,25 +86,29 @@ processFiles(struct fileIndex *index, void (*printFunctionPointer)
     (MatchingInfo *info, StreamContext* sc, char *file1, char *file2, \
      int isFirst, int isLast, int isMoreThanOne), int useOpenMp) {
 
-    for (unsigned int i = index->indexA + 1; i < index->maxIndex; ++i) {
+    for (int i = index->indexA + 1; i < index->maxIndexA; ++i) {
         StreamContext scontextsBase[NUM_OF_INPUTS] = { 0 };
         char *file1 = &index->pathsMatrix[i*MAX_PATH_LENGTH];
         binary_import(&scontextsBase[0], file1);
 
         // Used for session saving
         index->indexA = i - 1;
+        index->indexB = i;
+
 
         #pragma omp parallel for ordered schedule(dynamic) if(useOpenMp)
-        for (unsigned int j = index->indexB + 1; j < index->maxIndex; ++j) {
+        for (int j = index->indexB + 1; j < index->maxIndexB; ++j) {
 
             // Used for session saving
             #pragma omp ordered
             index->indexB = j - 1;
 
+
             struct fileIndex tmpIndex = {
                 .indexA = i,
                 .indexB = j,
-                .maxIndex = index->maxIndex,
+                .maxIndexA = index->maxIndexA,
+                .maxIndexB = index->maxIndexB,
                 .pathsMatrix = index->pathsMatrix
             };
             StreamContext scontexts[NUM_OF_INPUTS];

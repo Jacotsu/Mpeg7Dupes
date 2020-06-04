@@ -36,7 +36,7 @@
 
 
 struct fileIndex {
-    long int indexA, indexB, maxIndex;
+    long int indexA, indexB, maxIndexA, maxIndexB;
     char *pathsMatrix;
 };
 
@@ -47,6 +47,9 @@ typedef struct BoundedCoarseSignature {
     uint64_t firstPts, lastPts;
     CoarseSignature *cSign;
 } BoundedCoarseSignature;
+
+struct fileIndex
+mergeFileIterators(struct fileIndex *, struct fileIndex *);
 
 int
 initFileIterator(struct fileIndex *fileIndex, char *fileListName);

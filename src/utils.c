@@ -1,5 +1,32 @@
 #include "utils.h"
 
+// Merges 2 fileIndex structs into one and returns a new fileIndex struct
+// where the default new indexA and indexB are taken from the first
+// struct and the default maxIndexes are the sum of the maxIndex of both
+// structs
+struct fileIndex
+mergeFileIterators(struct fileIndex *index1, struct fileIndex *index2) {
+    struct fileIndex newFileIndex = {0};
+    char *newPathsMatrix = NULL;
+    unsigned int maxFiles1 = FFMAX(index1->maxIndexA, index1->maxIndexB);
+    unsigned int maxFiles2 = FFMAX(index2->maxIndexA, index2->maxIndexB);
+    unsigned int maxFiles = maxFiles1 + maxFiles2;
+
+    // Merge paths into memory
+    newPathsMatrix = calloc(maxFiles, MAX_PATH_LENGTH);
+    memcpy(newPathsMatrix, index1->pathsMatrix, maxFiles1*MAX_PATH_LENGTH);
+    memcpy(newPathsMatrix + maxFiles1*MAX_PATH_LENGTH, index2->pathsMatrix,
+        maxFiles2*MAX_PATH_LENGTH);
+
+    newFileIndex.indexA = index1->indexA;
+    newFileIndex.indexB = index1->indexB;
+    newFileIndex.maxIndexA = maxFiles;
+    newFileIndex.maxIndexB = maxFiles;
+    newFileIndex.pathsMatrix = newPathsMatrix;
+
+    return newFileIndex;
+}
+
 int
 initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     Assert(fileIndex);
@@ -7,21 +34,24 @@ initFileIterator(struct fileIndex *fileIndex, char *fileListName) {
     Assert(listFile);
     fileIndex->indexA = -1;
     fileIndex->indexB = 0;
-    fileIndex->maxIndex = getNumberOfLinesFromFilename(fileListName);
+    fileIndex->maxIndexA = getNumberOfLinesFromFilename(fileListName);
+    fileIndex->maxIndexB = fileIndex->maxIndexA;
+    int maxFiles = FFMAX(fileIndex->maxIndexA, fileIndex->maxIndexB);
+
 
     // Max path length, 320 chars should be enough for most cases
     // To save more memory the paths could be allocated on request
     // 10 000 file paths should use 3 200 000 chars (3.2 kb)
-    char* pathsMatrix = (char*) malloc(fileIndex->maxIndex*MAX_PATH_LENGTH);
+    char* pathsMatrix = (char*) calloc(maxFiles, MAX_PATH_LENGTH);
 
-    for (unsigned int i = 0; i < fileIndex->maxIndex; ++i) {
+    for (int i = 0; i < maxFiles; ++i) {
         fgets(&pathsMatrix[MAX_PATH_LENGTH*i], MAX_PATH_LENGTH, listFile);
         strtok(&pathsMatrix[MAX_PATH_LENGTH*i], "\n");
     }
 
     fileIndex->pathsMatrix = pathsMatrix;
     fclose(listFile);
-    Assert(fileIndex->maxIndex);
+    Assert(maxFiles);
     return 1;
 }
 
@@ -30,7 +60,8 @@ initFileIteratorFromCmdLine(struct fileIndex *fileIndex,
 	char **argv, int argc) {
     fileIndex->indexA = -1;
     fileIndex->indexB = 0;
-    fileIndex->maxIndex = argc;
+    fileIndex->maxIndexA = argc;
+    fileIndex->maxIndexB = argc;
 
     fileIndex->pathsMatrix = (char*) calloc(argc, MAX_PATH_LENGTH);
     for (int i = 0; i < argc; ++i)
@@ -67,13 +98,13 @@ nextFileIterationByIndex(struct fileIndex *fileIndex, char indexSelector) {
     switch (indexSelector) {
         case 'a': {
             ++fileIndex->indexA;
-            if (fileIndex->indexA >= fileIndex->maxIndex)
+            if (fileIndex->indexA >= fileIndex->maxIndexA)
                 return 0;
             break;
         }
         case 'b': {
             ++fileIndex->indexB;
-            if (fileIndex->indexB >= fileIndex->maxIndex) {
+            if (fileIndex->indexB >= fileIndex->maxIndexB) {
                 fileIndex->indexB = fileIndex->indexA + 1;
                 return 0;
             }
@@ -90,11 +121,11 @@ int
 nextFileIteration(struct fileIndex *fileIndex) {
     fileIndex->indexB++;
 
-    if (fileIndex->indexA >= fileIndex->maxIndex) {
+    if (fileIndex->indexA >= fileIndex->maxIndexA) {
         return 0;
     }
 
-    if (fileIndex->indexB >= fileIndex->maxIndex) {
+    if (fileIndex->indexB >= fileIndex->maxIndexB) {
         ++fileIndex->indexA;
         fileIndex->indexB = fileIndex->indexA;
         return nextFileIteration(fileIndex);

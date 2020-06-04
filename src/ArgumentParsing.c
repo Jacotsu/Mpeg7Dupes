@@ -86,7 +86,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     "Session file not found");
             }
 
-            if (arguments->sessionFile) {
+
+            if (arguments->incrementalFile) {
                 AssertFileExistence(arguments->incrementalFile,
                     "Incremental file list not found");
             }
@@ -109,7 +110,6 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     arguments->numberOfPaths;
 
                 for (unsigned int i = 0; i < arguments->numberOfPaths; ++i) {
-
                     AssertFileExistence(arguments->filePaths[i],
                         "File %s not found, aborting",
                         arguments->filePaths[i]);
@@ -161,6 +161,7 @@ parseArguments(int argc, char **argv) {
         { "output_format", 'f', "{csv,beautiful}", 0, "The desired output format. "\
             "Only csv and beautiful are supported. beautiful is default"},
         { "file_list", 'l', "file_list", 0, "Specify a list of signature files"},
+        { "incremental_file_list", 'n', "incremental_file_list", 0, "Specify a list of signature files that will be matched between each other and the specified files. Use this mode if you DON'T want to rematch every signature in the file list or argument list."},
         { "session_file", 's', "session_file", 0, "Resume previous session"},
         { 0 }
     };
