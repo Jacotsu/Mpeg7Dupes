@@ -217,31 +217,35 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
     double m = 0;
 
     for (unsigned int i = 0; i < COARSE_SIZE; i++) {
-        for (unsigned int j = 0; j < pairs[i].size; j++) {
+        struct pairs pairI = pairs[i];
+
+        for (unsigned int j = 0; j < pairI.size; j++) {
             for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
-                for (unsigned int l = 0; l < pairs[k].size; l++) {
-                    if (pairs[i].b[j] != pairs[k].b[l]) {
+                struct pairs pairK = pairs[k];
+
+                for (unsigned int l = 0; l < pairK.size; l++) {
+                    if (pairI.b[j] != pairK.b[l]) {
                         // linear regression
                         // good value between 0.0 - 2.0
-                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
+                        m = (pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
                         // round up to 0 - 60
                         framerate = round( m*30 + 0.5);
                         if (framerate > 0 && framerate <= MAX_FRAMERATE) {
                             // only second part has to be rounded up
-                            offset = pairs[i].b_pos[j] - round(m*i + 0.5);
+                            offset = pairI.b_pos[j] - round(m*i + 0.5);
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-                                unsigned int hspaceThreshold = pairs[i].dist \
+                                unsigned int hspaceThreshold = pairI.dist \
                                     < (unsigned int) hspace[framerate-1]\
                                     [offset+HOUGH_MAX_OFFSET].dist;
                                 if (hspaceThreshold) {
-                                    if (pairs[i].dist < pairs[k].dist) {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[i].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[i].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[i].b[j];
+                                    if (pairI.dist < pairK.dist) {
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairI.dist;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairI.a;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairI.b[j];
                                     } else {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[k].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[k].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[k].b[l];
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairK.dist;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairK.a;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairK.b[l];
                                     }
                                 }
                                 score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
@@ -274,9 +278,8 @@ get_matching_parameters(
     //size_t hmax = 0;
     //int l1dist;
 
-    size_t k, l, hmax = 0, score;
-    int framerate, offset, l1dist;
-    double m;
+    size_t hmax = 0;
+    int l1dist;
 
     MatchingInfo *cands = NULL, *c = NULL;
     struct pairs pairs[COARSE_SIZE] = { [0 ... COARSE_SIZE-1] = \
@@ -316,48 +319,7 @@ get_matching_parameters(
         }
     }
 
-    //hmax = houghTransform(pairs, hspace);
-    //
-    /* hough transformation */
-    for (unsigned int i = 0; i < COARSE_SIZE; i++) {
-        for (unsigned int j = 0; j < pairs[i].size; j++) {
-            for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
-                for (unsigned int l = 0; l < pairs[k].size; l++) {
-                    if (pairs[i].b[j] != pairs[k].b[l]) {
-                        // linear regression
-                        // good value between 0.0 - 2.0
-                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
-                        // round up to 0 - 60
-                        framerate = round( m*30 + 0.5);
-                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
-                            // only second part has to be rounded up
-                            offset = pairs[i].b_pos[j] - round(m*i + 0.5);
-                            if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-                                unsigned int hspaceThreshold = pairs[i].dist \
-                                    < (unsigned int) hspace[framerate-1]\
-                                    [offset+HOUGH_MAX_OFFSET].dist;
-                                if (hspaceThreshold) {
-                                    if (pairs[i].dist < pairs[k].dist) {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[i].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[i].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[i].b[j];
-                                    } else {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[k].dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[k].a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[k].b[l];
-                                    }
-                                }
-                                score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
-                                if (score > hmax )
-                                    hmax = score;
-                                hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score = score;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    hmax = houghTransform(pairs, hspace);
 
     if (hmax > 0) {
         hmax = round(0.7*hmax);
