@@ -127,8 +127,8 @@ get_l1dist(
         int f = first[i];
         int s = second[i];
         dist += \
-            (((f - s) >> 31)&sc->l1distlut[((483 - s) / 2)*s - 1 + f]) |\
-            (((s - f) >> 31)&sc->l1distlut[((483 - f) / 2)*f - 1 + s]);
+            (((s - f) >> 31)&sc->l1distlut[((483 - s) / 2)*s - 1 + f]) |\
+            (((f - s) >> 31)&sc->l1distlut[((483 - f) / 2)*f - 1 + s]);
     }
 
 
@@ -237,6 +237,7 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
                                 unsigned int hspaceThreshold = pairI.dist \
                                     < (unsigned int) hspace[framerate-1]\
                                     [offset+HOUGH_MAX_OFFSET].dist;
+
                                 if (hspaceThreshold) {
                                     if (pairI.dist < pairK.dist) {
                                         hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairI.dist;
@@ -292,7 +293,11 @@ get_matching_parameters(
     // designated initializer notation, removes initialization loops
     hspace_elem hspace[MAX_FRAMERATE][HOUGH_MAX_OFFSET] = { \
         [0 ... MAX_FRAMERATE-1] = \
-            { [0 ... HOUGH_MAX_OFFSET-1] = {.score = 0, .dist = 99999} }
+            { [0 ... HOUGH_MAX_OFFSET-1] = {
+                .score = 0,
+                .dist = 99999,
+                .a = NULL,
+                .b = NULL} }
     };
 
     /* l1 distances */
