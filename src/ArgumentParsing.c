@@ -92,7 +92,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     "Incremental file list not found");
             }
 
-            if (state->arg_num < 2 && !arguments->listFile) {
+            if (state->arg_num < 2 && !arguments->listFile\
+                    && !arguments->sessionFile) {
                 slog_error(2, "You should supply at least 2 files");
                 argp_usage(state);
             } else if (arguments->listFile){
