@@ -101,6 +101,7 @@ union_word(
     return val;
 }
 
+__attribute__((optimize("unroll-loops"), optimize("fast-math")))
 static unsigned int
 get_l1dist(
 	SignatureContext *sc,
@@ -109,34 +110,28 @@ get_l1dist(
 {
     unsigned int dist = 0;
 
-    uint8_t *dataVector = sc->l1distlut;
-
     for (unsigned int i = 0; i < SIGELEM_SIZE/5; ++i) {
-        /*
-         * original code kept for clarity purpose
-        if (first[i] != second[i]) {
-            uint8_t f = first[i];
-            uint8_t s = second[i];
-            if (f > s)
-                dist += sc->l1distlut[243*242/2 - (243-s)*(242-s)/2 + f - s - 1];
-            else
-                dist += sc->l1distlut[243*242/2 - (243-f)*(242-f)/2 + s - f - 1];
+        /* original code kept for clarity purpose
+        uint8_t f = first[i];
+        uint8_t s = second[i];
+        if (f != s) {
+          if (f > s)
+              // little variation of gauss sum formula
+              dist += sc->l1distlut[243*242/2 - (243-s)*(242-s)/2 + f - s - 1];
+          else
+              dist += sc->l1distlut[243*242/2 - (243-f)*(242-f)/2 + s - f - 1];
         }
         */
-        // This code shaves off a few seconds from a 8 signature list
-        register uint8_t f = first[i];
-        register uint8_t s = second[i];
-        // little variation of gauss sum formula
-        // Original formula
-        // 243*242/2 - (243-s)*(242-s)/2 + f - s - 1
 
-        // Branchless if, reduces the branch-misses by an order of magnitude
-        register unsigned int index = \
-            ((f - s) >> (sizeof(int)*8 - 1))&(483*s-s*s+2*f-2)/2 + \
-            ~((f - s) >> (sizeof(int)*8 - 1))&(483*f-f*f+2*s-2)/2;
-
-        dist += (f != s) ? dataVector[index] : 0;
+        // The branchless if trick works only with signed numbers
+        int f = first[i];
+        int s = second[i];
+        dist += \
+            (((f - s) >> 31)&sc->l1distlut[((-487*s + s*s) >> 2) - 1 + f]) |\
+            (((s - f) >> 31)&sc->l1distlut[((-487*f + f*f) >> 2) - 1 + s]);
     }
+
+
     return dist;
 }
 

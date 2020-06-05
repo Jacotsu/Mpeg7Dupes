@@ -20,6 +20,9 @@
 #define XSTR(A) STR(A)
 #define STR(A) #A
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
