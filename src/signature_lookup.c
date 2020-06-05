@@ -127,8 +127,8 @@ get_l1dist(
         int f = first[i];
         int s = second[i];
         dist += \
-            (((f - s) >> 31)&sc->l1distlut[((-487*s + s*s) >> 2) - 1 + f]) |\
-            (((s - f) >> 31)&sc->l1distlut[((-487*f + f*f) >> 2) - 1 + s]);
+            (((f - s) >> 31)&sc->l1distlut[((483 - s) / 2)*s - 1 + f]) |\
+            (((s - f) >> 31)&sc->l1distlut[((483 - f) / 2)*f - 1 + s]);
     }
 
 
@@ -208,21 +208,76 @@ find_next_coarsecandidate(
     }
 }
 
+/* hough transformation */
+__attribute__((optimize("unroll-loops"), optimize("fast-math")))
+size_t
+houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
+    int framerate = 0, offset = 0;
+    size_t score = 0, hmax = 0;
+    double m = 0;
+
+    for (unsigned int i = 0; i < COARSE_SIZE; i++) {
+        for (unsigned int j = 0; j < pairs[i].size; j++) {
+            for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
+                for (unsigned int l = 0; l < pairs[k].size; l++) {
+                    if (pairs[i].b[j] != pairs[k].b[l]) {
+                        // linear regression
+                        // good value between 0.0 - 2.0
+                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
+                        // round up to 0 - 60
+                        framerate = round( m*30 + 0.5);
+                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
+                            // only second part has to be rounded up
+                            offset = pairs[i].b_pos[j] - round(m*i + 0.5);
+                            if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
+                                unsigned int hspaceThreshold = pairs[i].dist \
+                                    < (unsigned int) hspace[framerate-1]\
+                                    [offset+HOUGH_MAX_OFFSET].dist;
+                                if (hspaceThreshold) {
+                                    if (pairs[i].dist < pairs[k].dist) {
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[i].dist;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[i].a;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[i].b[j];
+                                    } else {
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairs[k].dist;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairs[k].a;
+                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairs[k].b[l];
+                                    }
+                                }
+                                score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
+                                if (score > hmax )
+                                    hmax = score;
+                                hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score = score;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return hmax;
+}
+
 /**
  * compares framesignatures and sorts out signatures with a l1 distance above a given threshold.
  * Then tries to find out offset and differences between framerates with a hough transformation
  */
+__attribute__((optimize("unroll-loops"), optimize("fast-math")))
 static MatchingInfo*
 get_matching_parameters(
 	SignatureContext *sc,
 	FineSignature *first,
 	FineSignature *second)
 {
-    // This function mst be optimized
+    // This function must be optimized
     FineSignature *f;
+    //size_t hmax = 0;
+    //int l1dist;
+
     size_t k, l, hmax = 0, score;
     int framerate, offset, l1dist;
     double m;
+
     MatchingInfo *cands = NULL, *c = NULL;
     struct pairs pairs[COARSE_SIZE] = { [0 ... COARSE_SIZE-1] = \
         {.size = 0, .dist = 9999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
@@ -261,6 +316,8 @@ get_matching_parameters(
         }
     }
 
+    //hmax = houghTransform(pairs, hspace);
+    //
     /* hough transformation */
     for (unsigned int i = 0; i < COARSE_SIZE; i++) {
         for (unsigned int j = 0; j < pairs[i].size; j++) {
