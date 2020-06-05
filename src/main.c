@@ -17,10 +17,6 @@ main(int argc, char **argv) {
     initSession(&session, &args, &index);
 
 
-    if (args.sessionFile)
-        loadSession(&args, &index, args.sessionFile);
-
-
     signal(SIGINT, INThandler);
     oldSEGVhandler = signal(SIGSEGV, SEGVhandler);
 
@@ -28,30 +24,6 @@ main(int argc, char **argv) {
 	args = parseArguments(argc, argv);
 
     slog_info(4, "Logging initialized");
-    // 0    panic
-    // 2    error
-    // 3    warn
-    // 4    info
-    // 5    live
-    // 6    debug
-    if (__DEBUG || args.verbose) {
-        slog_init("logfile", "slog.cfg", 6, 1);
-    }
-
-    if (args.useOpenMp)
-        #pragma omp parallel
-        {
-            #pragma omp single
-            slog_info(4, "Using %d threads", omp_get_num_threads());
-        }
-
-    if (args.outputFormat == CSV) {
-        printCSVHeader();
-        printFunctionPointer = printCSV;
-    } else {
-        printBeautifulHeader();
-        printFunctionPointer = printBeautiful;
-    }
 
 
     if (args.listFile)
@@ -70,6 +42,34 @@ main(int argc, char **argv) {
         tmpIndex.maxIndexA = getNumberOfLinesFromFilename(args.incrementalFile);
         terminateFileIterator(&index);
         index = tmpIndex;
+    }
+
+    if (args.sessionFile)
+        loadSession(&args, &index, args.sessionFile);
+
+    if (args.outputFormat == CSV) {
+        printCSVHeader();
+        printFunctionPointer = printCSV;
+    } else {
+        printBeautifulHeader();
+        printFunctionPointer = printBeautiful;
+    }
+
+    if (args.useOpenMp)
+        #pragma omp parallel
+        {
+            #pragma omp single
+            slog_info(4, "Using %d threads", omp_get_num_threads());
+        }
+
+    // 0    panic
+    // 2    error
+    // 3    warn
+    // 4    info
+    // 5    live
+    // 6    debug
+    if (__DEBUG || args.verbose) {
+        slog_init("logfile", "slog.cfg", 6, 1);
     }
 
     processFiles(&index, printFunctionPointer, args.useOpenMp);
