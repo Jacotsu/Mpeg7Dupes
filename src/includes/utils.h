@@ -15,13 +15,6 @@
 
 #define MAX_PATH_LENGTH 320
 
-#define FFMAX(a,b) ((a) > (b) ? (a) : (b))
-
-#define XSTR(A) STR(A)
-#define STR(A) #A
-
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
 
 #include <string.h>
 #include <stdio.h>
@@ -31,6 +24,7 @@
 #include <sys/stat.h>
 
 // ffmpeg downloaded headers
+#include "macros.h"
 #include "signature.h"
 
 // custom headers

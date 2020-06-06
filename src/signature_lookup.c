@@ -31,6 +31,7 @@
 #include <math.h>
 
 #include "signature.h"
+#include "macros.h"
 #include "customAssert.h"
 
 #define HOUGH_MAX_OFFSET 90
@@ -228,11 +229,13 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
                         // linear regression
                         // good value between 0.0 - 2.0
                         m = (pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
+
                         // round up to 0 - 60
-                        framerate = round( m*30 + 0.5);
+                        framerate = nearbyint( m*30 + 0.500000001);
                         if (framerate > 0 && framerate <= MAX_FRAMERATE) {
                             // only second part has to be rounded up
-                            offset = pairI.b_pos[j] - round(m*i + 0.5);
+                            offset = pairI.b_pos[j] - nearbyint(m*i + 0.500000001);
+
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
                                 unsigned int hspaceThreshold = pairI.dist \
                                     < (unsigned int) hspace[framerate-1]\
@@ -618,14 +621,16 @@ lookup_signatures(
             slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
                 "frame: %" PRIu32 " and %" PRIu32,
                 cs->first->index, cs2->first->index);
-            /* stage 2: l1-distance and hough-transform */
+
+            // stage 2: l1-distance and hough-transform
             infos = get_matching_parameters(sc, cs->first, cs2->first);
+
             for (MatchingInfo *i = infos; i != NULL; i = i->next) {
                 slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
                     PRIu32 ", ratio %f, offset %d", i->first->index, \
                     i->second->index, i->framerateratio, i->offset);
             }
-            /* stage 3: evaluation */
+            // stage 3: evaluation
             if (infos) {
                 bestmatch = evaluate_parameters(sc, infos, bestmatch);
                 if (bestmatch.first && bestmatch.second)
