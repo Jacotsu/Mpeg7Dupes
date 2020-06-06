@@ -47,12 +47,14 @@ main(int argc, char **argv) {
     if (args.sessionFile)
         loadSession(&args, &index, args.sessionFile);
 
-    if (args.outputFormat == CSV) {
-        printCSVHeader();
-        printFunctionPointer = printCSV;
-    } else {
-        printBeautifulHeader();
-        printFunctionPointer = printBeautiful;
+    // 0    panic
+    // 2    error
+    // 3    warn
+    // 4    info
+    // 5    live
+    // 6    debug
+    if (__DEBUG || args.verbose) {
+        slog_init("logfile", "slog.cfg", 6, 1);
     }
 
     if (args.useOpenMp)
@@ -62,14 +64,12 @@ main(int argc, char **argv) {
             slog_info(4, "Using %d threads", omp_get_num_threads());
         }
 
-    // 0    panic
-    // 2    error
-    // 3    warn
-    // 4    info
-    // 5    live
-    // 6    debug
-    if (__DEBUG || args.verbose) {
-        slog_init("logfile", "slog.cfg", 6, 1);
+    if (args.outputFormat == CSV) {
+        printCSVHeader();
+        printFunctionPointer = printCSV;
+    } else {
+        printBeautifulHeader();
+        printFunctionPointer = printBeautiful;
     }
 
     processFiles(&index, printFunctionPointer, args.useOpenMp);
