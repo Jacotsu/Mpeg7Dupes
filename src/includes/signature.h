@@ -154,7 +154,7 @@ struct pairs {
 };
 
 typedef struct hspace_elem {
-    int dist;
+    unsigned int dist;
     size_t score;
     FineSignature *a;
     FineSignature *b;

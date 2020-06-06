@@ -28,6 +28,12 @@ release:
 	@$(MAKE) $(MAKEFILE) \
 		EXE_PATH="${BIN_DIR}/mpeg7Dupes.elf" link
 
+.PHONY: releaseWithSymbols
+releaseWithSymbols:
+	@echo Building release
+	@$(MAKE) $(MAKEFILE) SYMBOLS="1"\
+		EXE_PATH="${BIN_DIR}/mpeg7DupesSymbols.elf" link
+
 .PHONY: debug
 debug:
 	@echo Building debug
@@ -67,7 +73,11 @@ else
 	$(CC) -c -g3 -D DEBUG ${CFLAGS} ${CDEBUGFLAGS}  $< -o $@ ${INCLUDES}
 endif
 else
+ifdef SYMBOLS
+	$(CC) -g3 -c  ${CFLAGS} ${CRELEASEFLAGS} $< -O2 -o $@ ${INCLUDES}
+else
 	$(CC) -c  ${CFLAGS} ${CRELEASEFLAGS} $< -O2 -o $@ ${INCLUDES}
+endif
 endif
 
 link: compile
@@ -75,5 +85,9 @@ link: compile
 ifdef DEBUG
 	$(CC) -g3 -o ${EXE_PATH} ${OBJS} ${DEBUG_LIBS} ${CFLAGS} ${LIBS}
 else
+ifdef SYMBOLS
+	$(CC) -g3 -o ${EXE_PATH} ${OBJS} ${CFLAGS} ${LIBS}
+else
 	$(CC) -o ${EXE_PATH} ${OBJS} ${CFLAGS} ${LIBS}
+endif
 endif

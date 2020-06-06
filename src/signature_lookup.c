@@ -216,6 +216,13 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
     int framerate = 0, offset = 0;
     size_t score = 0, hmax = 0;
     double m = 0;
+    // This entire codeblock is a mess and it deserves a damnatio
+    // memoriae. This should be a basic hough transform but for some reason
+    // it's an intricate 4 level nested loop with non sequential memory
+    // access and with wrong math calculations (the code tries
+    // to do a linear regression by using an int division and if you
+    // try to fix it it doesn't work at all). I'll try to fix it properly
+    // when i'll have a clearer mind and more time.
 
     for (unsigned int i = 0; i < COARSE_SIZE; i++) {
         struct pairs pairI = pairs[i];
@@ -226,38 +233,70 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
 
                 for (unsigned int l = 0; l < pairK.size; l++) {
                     if (pairI.b[j] != pairK.b[l]) {
+
                         // linear regression
                         // good value between 0.0 - 2.0
-                        m = (pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
-
+                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
                         // round up to 0 - 60
-                        framerate = nearbyint( m*30 + 0.500000001);
-                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
+                        framerate = nearbyint( m*30 + 0.500000001);;
+                        if (framerate>0 && framerate <= MAX_FRAMERATE) {
                             // only second part has to be rounded up
-                            offset = pairI.b_pos[j] - nearbyint(m*i + 0.500000001);
+                            offset = pairs[i].b_pos[j] -  nearbyint(m*i + 0.500000001);
 
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-                                unsigned int hspaceThreshold = pairI.dist \
-                                    < (unsigned int) hspace[framerate-1]\
-                                    [offset+HOUGH_MAX_OFFSET].dist;
+                                hspace_elem *hElem = &hspace[framerate-1][offset+HOUGH_MAX_OFFSET];
+
+                                if (pairI.dist < pairK.dist) {
+                                    if (pairI.dist < hElem->dist) {
+                                        hElem->dist = pairI.dist;
+                                        hElem->a = pairI.a;
+                                        hElem->b = pairI.b[j];
+                                    }
+                                } else {
+                                    if (pairK.dist < hElem->dist) {
+                                        hElem->dist = pairK.dist;
+                                        hElem->a = pairK.a;
+                                        hElem->b = pairK.b[l];
+                                    }
+                                }
+
+                                score = ++hElem->score;
+                                if (score > hmax )
+                                    hmax = score;
+                            }
+                        }
+
+
+                        /*
+                        // linear regression
+                        // good value between 0.0 - 2.0
+                        // This should be the correct code, but if used the
+                        // stack gets smashed. probably an implementation
+                        // error by the original author
+                        //m = ((double) pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
+                        // this is the original and probably incorrect code
+                        m = ( pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
+
+                        // round up to 0 - 60
+                        framerate = (int) m*30 + 0.5;
+                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
+                            // only second part has to be rounded up
+                            offset = pairI.b_pos[j] - ((int) m*i + 0.5);
+
+                            if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
 
                                 if (hspaceThreshold) {
                                     if (pairI.dist < pairK.dist) {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairI.dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairI.a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairI.b[j];
                                     } else {
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].dist = pairK.dist;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].a = pairK.a;
-                                        hspace[framerate-1][offset+HOUGH_MAX_OFFSET].b = pairK.b[l];
                                     }
                                 }
-                                score = hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score + 1;
+                                //score = ++hElem->score;
+                                score = hElem->score + 1;
                                 if (score > hmax )
                                     hmax = score;
-                                hspace[framerate-1][offset+HOUGH_MAX_OFFSET].score = score;
                             }
-                        }
+
+                        }*/
                     }
                 }
             }
@@ -270,7 +309,7 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
  * compares framesignatures and sorts out signatures with a l1 distance above a given threshold.
  * Then tries to find out offset and differences between framerates with a hough transformation
  */
-__attribute__((optimize("unroll-loops"), optimize("fast-math")))
+__attribute__((optimize("unroll-loops")))
 static MatchingInfo*
 get_matching_parameters(
 	SignatureContext *sc,
@@ -287,18 +326,18 @@ get_matching_parameters(
 
     MatchingInfo *cands = NULL, *c = NULL;
     struct pairs pairs[COARSE_SIZE] = { [0 ... COARSE_SIZE-1] = \
-        {.size = 0, .dist = 9999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
+        {.size = 0, .dist = 999999999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
 
 
     /* initialize houghspace */
     // Removed malloc/calloc to avoid useless memory allocation
     // when plenty of space is avaiable in the stack
     // designated initializer notation, removes initialization loops
-    hspace_elem hspace[MAX_FRAMERATE][HOUGH_MAX_OFFSET] = { \
+    hspace_elem hspace[MAX_FRAMERATE][2*HOUGH_MAX_OFFSET] = { \
         [0 ... MAX_FRAMERATE-1] = \
-            { [0 ... HOUGH_MAX_OFFSET-1] = {
+            { [0 ... 2*HOUGH_MAX_OFFSET-1] = {
                 .score = 0,
-                .dist = 99999,
+                .dist = 999999999,
                 .a = NULL,
                 .b = NULL} }
     };
