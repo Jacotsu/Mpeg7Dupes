@@ -21,32 +21,34 @@ main(int argc, char **argv) {
     oldSEGVhandler = signal(SIGSEGV, SEGVhandler);
 
 
-	args = parseArguments(argc, argv);
+    args = parseArguments(argc, argv);
 
     slog_info(4, "Logging initialized");
 
 
-    if (args.listFile)
-        initFileIterator(&index, args.listFile);
-    else
-        initFileIteratorFromCmdLine(&index, args.filePaths,\
-            args.numberOfPaths);
-
-    if (args.incrementalFile) {
-        struct fileIndex incrementalIndex = {0};
-        struct fileIndex tmpIndex = {0};
-
-        slog_info(4, "Incremental mode selected");
-        initFileIterator(&incrementalIndex, args.incrementalFile);
-        tmpIndex = mergeFileIterators(&incrementalIndex, &index);
-        tmpIndex.maxIndexA = getNumberOfLinesFromFilename(args.incrementalFile);
-        terminateFileIterator(&index);
-        index = tmpIndex;
-    }
-
     if (args.sessionFile)
         loadSession(&args, &index, args.sessionFile);
+    else {
+        if (args.listFile)
+            initFileIterator(&index, args.listFile);
+        else
+            initFileIteratorFromCmdLine(&index, args.filePaths,\
+                args.numberOfPaths);
 
+        if (args.incrementalFile) {
+            struct fileIndex incrementalIndex = {0};
+            struct fileIndex tmpIndex = {0};
+
+            slog_info(4, "Incremental mode selected");
+            initFileIterator(&incrementalIndex, args.incrementalFile);
+            tmpIndex = mergeFileIterators(&incrementalIndex, &index);
+            tmpIndex.maxIndexA = getNumberOfLinesFromFilename(args.incrementalFile);
+            terminateFileIterator(&index);
+            index = tmpIndex;
+        }
+    }
+
+    
     // 0    panic
     // 2    error
     // 3    warn
