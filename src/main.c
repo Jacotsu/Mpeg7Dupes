@@ -60,7 +60,6 @@ main(int argc, char **argv) {
     }
 
     if (args.useOpenMp)
-        
         slog_info(4, "Using %d threads", omp_get_max_threads());
 
     if (args.outputFormat == CSV) {
