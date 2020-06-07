@@ -60,11 +60,8 @@ main(int argc, char **argv) {
     }
 
     if (args.useOpenMp)
-        #pragma omp parallel
-        {
-            #pragma omp single
-            slog_info(4, "Using %d threads", omp_get_num_threads());
-        }
+        
+        slog_info(4, "Using %d threads", omp_get_max_threads());
 
     if (args.outputFormat == CSV) {
         printCSVHeader();
