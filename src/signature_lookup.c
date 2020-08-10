@@ -212,10 +212,11 @@ find_next_coarsecandidate(
 /* hough transformation */
 __attribute__((optimize("unroll-loops"), optimize("fast-math")))
 size_t
-houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
+houghTransform(struct pairs *pairs, hspace_elem hspace[]\
+        [2*HOUGH_MAX_OFFSET + 1]) {
     int framerate = 0, offset = 0;
     size_t score = 0, hmax = 0;
-    double m = 0;
+    float m = 0;
     // This entire codeblock is a mess and it deserves a damnatio
     // memoriae. This should be a basic hough transform but for some reason
     // it's an intricate 4 level nested loop with non sequential memory
@@ -227,8 +228,9 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
     for (unsigned int i = 0; i < COARSE_SIZE; i++) {
         struct pairs pairI = pairs[i];
 
-        for (unsigned int j = 0; j < pairI.size; j++) {
-            for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
+        for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
+
+            for (unsigned int j = 0; j < pairI.size; j++) {
                 struct pairs pairK = pairs[k];
 
                 for (unsigned int l = 0; l < pairK.size; l++) {
@@ -236,12 +238,14 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[][HOUGH_MAX_OFFSET]) {
 
                         // linear regression
                         // good value between 0.0 - 2.0
-                        m = (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / (k-i);
+                        m = (float) (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / \
+                            (k-i);
                         // round up to 0 - 60
-                        framerate = nearbyint( m*30 + 0.500000001);;
+                        framerate = nearbyint( m*30 + 0.5);;
                         if (framerate>0 && framerate <= MAX_FRAMERATE) {
                             // only second part has to be rounded up
-                            offset = pairs[i].b_pos[j] -  nearbyint(m*i + 0.500000001);
+                            offset = pairs[i].b_pos[j] - \
+                                     nearbyint(m*i + 0.5);
 
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
                                 hspace_elem *hElem = &hspace[framerate-1][offset+HOUGH_MAX_OFFSET];
@@ -333,9 +337,9 @@ get_matching_parameters(
     // Removed malloc/calloc to avoid useless memory allocation
     // when plenty of space is avaiable in the stack
     // designated initializer notation, removes initialization loops
-    hspace_elem hspace[MAX_FRAMERATE][2*HOUGH_MAX_OFFSET] = { \
+    hspace_elem hspace[MAX_FRAMERATE][2*HOUGH_MAX_OFFSET+1] = { \
         [0 ... MAX_FRAMERATE-1] = \
-            { [0 ... 2*HOUGH_MAX_OFFSET-1] = {
+            { [0 ... 2*HOUGH_MAX_OFFSET] = {
                 .score = 0,
                 .dist = 999999999,
                 .a = NULL,
