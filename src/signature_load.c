@@ -57,6 +57,7 @@ binary_import(StreamContext *sc, const char* filename)
     skip_bits(&bitContext, 32);
 
     // NumOfFrames
+    // it's the number of fine signatures
     sc->lastindex = get_bits(&bitContext, 32);
 
     // sc->time_base.den / sc->time_base.num
@@ -78,9 +79,11 @@ binary_import(StreamContext *sc, const char* filename)
 
     // Coarse signatures
     // numOfSegments = number of coarse signatures
+    numOfSegments = get_bits(&bitContext, 32);
+
     // Reading from binary signature return a wrong number of segments
-    numOfSegments = (sc->lastindex + 44)/45;
-    skip_bits(&bitContext, 32);
+    // numOfSegments = (sc->lastindex + 44)/45;
+    //skip_bits(&bitContext, 32);
 
 	sc->coarsesiglist = (CoarseSignature*) calloc(numOfSegments,\
             sizeof(CoarseSignature));
@@ -156,7 +159,7 @@ binary_import(StreamContext *sc, const char* filename)
         skip_bits(&bitContext, 1);
 
         // MediaTimeOfFrame (PTS)
-        fs->pts = 0xFFFFFFFF & get_bits(&bitContext, 32);
+        fs->pts = get_bits(&bitContext, 32);
 
         // FrameConfidence
         fs->confidence = get_bits(&bitContext, 8);
@@ -173,13 +176,8 @@ binary_import(StreamContext *sc, const char* filename)
         }
     };
 
-    // Sort by frame time (pts)
-    qsort(sc->finesiglist, sc->lastindex, sizeof(FineSignature),\
-            fineSignatureCmp);
-
 
     // Creating FineSignature linked list
-    // CAN CAUSE MEMORY CORRUPTION
     for (unsigned int i = 0; i < sc->lastindex; ++i) {
         FineSignature *fs = &sc->finesiglist[i];
         // Building fine signature list
@@ -208,30 +206,21 @@ binary_import(StreamContext *sc, const char* filename)
         for (unsigned int j = 0;  j < sc->lastindex  &&\
             sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
+            int log = 0;
 
-            if (fs->pts >= bCs->firstPts) {
-                //slog_debug(6, "%d %d %d",bCs->firstPts, fs->pts, bCs->lastPts);
-                // Check if the fragment's pts is inside coarse signature
-                // bounds. Upper bound is checked in for loop
-                if (!bCs->cSign->first) {
-                    bCs->cSign->first = fs;
-                }
-                if (bCs->cSign->last) {
-                    if (bCs->cSign->last->pts <= fs->pts)
-                        bCs->cSign->last = fs;
-                } else {
-                    bCs->cSign->last = fs;
-                }
+            if (fs->pts == bCs->firstPts) {
+                bCs->cSign->first = fs;
+                log = 1;
+            }
+            if (fs->pts == bCs->lastPts) {
+                bCs->cSign->last = fs;
+                log = 1;
+            }
+            if (log)
                 slog_debug(6, "[%5d -> %5d - |%5d| - %5d <- %5d]",\
                     bCs->firstPts, bCs->cSign->first->pts,\
                     fs->pts, bCs->cSign->last->pts, bCs->lastPts);
-            }
         }
-        // If atleast one is not NULL then the signature is valid
-        // otherwise it isn't
-        //slog_warn(3, "Empty coarse signature in signature: %s", filename);
-        //LoggedAssert(bCs->cSign->first || bCs->cSign->last,\
-        //   "Empty coarse signature");
     };
     // Apparently there can be empty coarse signatures
     if (sc->coarseend->last)
