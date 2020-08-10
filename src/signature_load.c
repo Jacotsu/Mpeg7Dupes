@@ -176,6 +176,9 @@ binary_import(StreamContext *sc, const char* filename)
         }
     };
 
+    // Sort by frame time (pts)
+    qsort(sc->finesiglist, sc->lastindex, sizeof(FineSignature),\
+            fineSignatureCmp);
 
     // Creating FineSignature linked list
     for (unsigned int i = 0; i < sc->lastindex; ++i) {
@@ -202,24 +205,30 @@ binary_import(StreamContext *sc, const char* filename)
     // Assign FineSignatures to CoarseSignature s
     for (unsigned int i = 0; i < numOfSegments; ++i) {
         BoundedCoarseSignature *bCs = &bCoarseList[i];
+
         // O = n^2 probably it can be done faster
         for (unsigned int j = 0;  j < sc->lastindex  &&\
             sc->finesiglist[j].pts <= bCs->lastPts; ++j) {
             FineSignature *fs = &sc->finesiglist[j];
-            int log = 0;
 
-            if (fs->pts == bCs->firstPts) {
-                bCs->cSign->first = fs;
-                log = 1;
-            }
-            if (fs->pts == bCs->lastPts) {
-                bCs->cSign->last = fs;
-                log = 1;
-            }
-            if (log)
+            if (fs->pts >= bCs->firstPts) {
+                // Check if the fragment's pts is inside coarse signature
+                // bounds. Upper bound is checked in for loop
+                if (!bCs->cSign->first) {
+                    bCs->cSign->first = fs;
+                }
+
+                if (bCs->cSign->last) {
+                    if (bCs->cSign->last->pts <= fs->pts)
+                        bCs->cSign->last = fs;
+                } else {
+                    bCs->cSign->last = fs;
+                }
                 slog_debug(6, "[%5d -> %5d - |%5d| - %5d <- %5d]",\
                     bCs->firstPts, bCs->cSign->first->pts,\
                     fs->pts, bCs->cSign->last->pts, bCs->lastPts);
+            }
+
         }
     };
     // Apparently there can be empty coarse signatures
