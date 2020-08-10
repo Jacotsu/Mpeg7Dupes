@@ -55,7 +55,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             arguments->numberOfPaths = 0;
             arguments->useOpenMp = 0;
             arguments->filePaths = NULL;
-            arguments->minScore = 9000;
+            arguments->minScore = 1000;
             break;
 
         case ARGP_KEY_END:
@@ -143,7 +143,7 @@ parseArguments(int argc, char **argv) {
             "video ends. Should be faster in some cases."},
         { "signature_type", 't', "{xml,binary}", 0, "Only binary is supported"},
         { "minimum_score", 'k', "{float}", 0, "The minimum score to meet to be shown as similar"
-            "The default value is 9000"},
+            "The default value is 1000"},
         { "thD", 'd', "{float}", 0, "Threshold to detect one word as similar. The "\
             "option value must be an integer greater than zero. The default "\
             "value is 9000."},
