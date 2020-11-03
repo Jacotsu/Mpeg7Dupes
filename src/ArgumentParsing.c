@@ -50,12 +50,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             arguments->thD = 9000;
             arguments->thDc = 60000;
             arguments->thXh = 290;
-            arguments->thDi = 150;
+            arguments->thDi = 300;
             arguments->thIt = 0.5;
             arguments->numberOfPaths = 0;
             arguments->useOpenMp = 0;
             arguments->filePaths = NULL;
-            arguments->minScore = 1000;
+            arguments->minScore = 49;
             break;
 
         case ARGP_KEY_END:
@@ -143,7 +143,7 @@ parseArguments(int argc, char **argv) {
             "video ends. Should be faster in some cases."},
         { "signature_type", 't', "{xml,binary}", 0, "Only binary is supported"},
         { "minimum_score", 'k', "{float}", 0, "The minimum score to meet to be shown as similar"
-            "The default value is 1000"},
+            "The default value is 49"},
         { "thD", 'd', "{float}", 0, "Threshold to detect one word as similar. The "\
             "option value must be an integer greater than zero. The default "\
             "value is 9000."},
@@ -155,7 +155,7 @@ parseArguments(int argc, char **argv) {
             "value is 290."},
         { "thDi", 'i', "{float}", 0, "The minimum length of a sequence in frames to "\
             "recognize it as matching sequence. The option value must be a "\
-            "non negative integer value. The default value is 150."},
+            "non negative integer value. The default value is 300."},
         { "thIt", 'b', "{float}", 0, "Threshold for relation of good to all frames."\
             "The option value must be a double "\
             "value between 0 and 1. The default value is 0.5."},

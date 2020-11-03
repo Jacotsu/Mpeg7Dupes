@@ -238,7 +238,7 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[]\
 
                         // linear regression
                         // good value between 0.0 - 2.0
-                        m = (float) (pairs[k].b_pos[l]-pairs[i].b_pos[j]) / \
+                        m = ((float) (pairs[k].b_pos[l]-pairs[i].b_pos[j]) )/ \
                             (k-i);
                         // round up to 0 - 60
                         framerate = nearbyint( m*30 + 0.5);;
@@ -269,38 +269,6 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[]\
                                     hmax = score;
                             }
                         }
-
-
-                        /*
-                        // linear regression
-                        // good value between 0.0 - 2.0
-                        // This should be the correct code, but if used the
-                        // stack gets smashed. probably an implementation
-                        // error by the original author
-                        //m = ((double) pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
-                        // this is the original and probably incorrect code
-                        m = ( pairK.b_pos[l]-pairI.b_pos[j]) / (k-i);
-
-                        // round up to 0 - 60
-                        framerate = (int) m*30 + 0.5;
-                        if (framerate > 0 && framerate <= MAX_FRAMERATE) {
-                            // only second part has to be rounded up
-                            offset = pairI.b_pos[j] - ((int) m*i + 0.5);
-
-                            if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
-
-                                if (hspaceThreshold) {
-                                    if (pairI.dist < pairK.dist) {
-                                    } else {
-                                    }
-                                }
-                                //score = ++hElem->score;
-                                score = hElem->score + 1;
-                                if (score > hmax )
-                                    hmax = score;
-                            }
-
-                        }*/
                     }
                 }
             }

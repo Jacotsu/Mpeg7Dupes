@@ -25,33 +25,6 @@ main(int argc, char **argv) {
 
     slog_info(4, "Logging initialized");
 
-    // debug
-    slog_init("logfile", "slog.cfg", 6, 1);
-    StreamContext scontextsBase[NUM_OF_INPUTS] = { 0 };
-    char *file1 = "/home/jacotsu/Documents/programming/mpeg7_video_signature_comparer/test/1234_In_the_name_of_GodCCS_tarrant.webm.sig";
-    binary_import(&scontextsBase[0], file1);
-    binary_import(&scontextsBase[1], file1);
-    SignatureContext sigContext = {
-                .class = NULL,
-                .mode = args.mode,
-                .nb_inputs = NUM_OF_INPUTS,
-                .filename = "",
-                .thworddist = args.thD,
-                .thcomposdist = args.thDc,
-                .thl1 = args.thXh,
-                .thdi = args.thDi,
-                .thit = args.thIt,
-                .streamcontexts = scontextsBase
-            };
-    MatchingInfo result = {0};
-
-    result = processSignaturePair(&scontextsBase[0], &scontextsBase[1],
-        sigContext);
-
-    return 0;
-    //----------
-
-
     if (args.sessionFile)
         loadSession(&args, &index, args.sessionFile);
     else {
@@ -122,7 +95,7 @@ processFiles(struct fileIndex *index, void (*printFunctionPointer)
         index->indexB = i;
 
 
-        #pragma omp parallel for ordered schedule(dynamic) if(useOpenMp)
+        //#pragma omp parallel for ordered schedule(dynamic) if(useOpenMp)
         for (int j = index->indexB + 1; j < index->maxIndexB; ++j) {
 
             // Used for session saving
