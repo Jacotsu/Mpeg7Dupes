@@ -1,4 +1,5 @@
 #include "signature_load.h"
+#include "printers.h"
 
 
 void
@@ -58,7 +59,7 @@ binary_import(StreamContext *sc, const char* filename)
 
     // NumOfFrames
     // it's the number of fine signatures
-    sc->lastindex = get_bits(&bitContext, 32);
+    sc->lastindex = get_bits_long(&bitContext, 32);
 
     // sc->time_base.den / sc->time_base.num
     // hoping num is 1, other values are vague
@@ -75,11 +76,11 @@ binary_import(StreamContext *sc, const char* filename)
     skip_bits(&bitContext, 1 + 32);
 
     // EndMediaTimeOfSpatialRegion
-    uint64_t lastCoarsePts = get_bits(&bitContext, 32);
+    uint64_t lastCoarsePts = get_bits_long(&bitContext, 32);
 
     // Coarse signatures
     // numOfSegments = number of coarse signatures
-    numOfSegments = get_bits(&bitContext, 32);
+    numOfSegments = get_bits_long(&bitContext, 32);
 
     // Reading from binary signature return a wrong number of segments
     // numOfSegments = (sc->lastindex + 44)/45;
@@ -109,33 +110,30 @@ binary_import(StreamContext *sc, const char* filename)
         // each coarse signature is a VSVideoSegment
 
         // StartFrameOfSegment
-        bCs->firstIndex = get_bits(&bitContext, 32);
+        bCs->firstIndex = get_bits_long(&bitContext, 32);
         // EndFrameOfSegment
-        bCs->lastIndex = get_bits(&bitContext, 32);
+        bCs->lastIndex = get_bits_long(&bitContext, 32);
 
         // MediaTimeFlagOfSegment 1 bit, always 1
         skip_bits(&bitContext, 1);
 
         // Fine signature pts
         // StartMediaTimeOfSegment 32 bits
-        bCs->firstPts = get_bits(&bitContext, 32);
+        bCs->firstPts = get_bits_long(&bitContext, 32);
         // EndMediaTimeOfSegment 32 bits
-        bCs->lastPts = get_bits(&bitContext, 32);
+        bCs->lastPts = get_bits_long(&bitContext, 32);
 
 
 		// Bag of words
         for (unsigned int i = 0; i < 5; ++i) {
-            // read 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
 
+            // read 243 bits ( = 7 * 32 + 19 = 8 * 28 + 19) into buffer
             for (unsigned int j = 0; j < 30; ++j) {
                 // 30*8 bits = 30 bytes
                 bCs->cSign->data[i][j] = get_bits(&bitContext, 8);
             }
             bCs->cSign->data[i][30] = get_bits(&bitContext, 3) << 5;
         }
-        slog_debug(6, "indexes: %010lu|%010lu\tpts: %010llu|%010llu"\
-            "\tnext: %p", bCs->firstIndex, bCs->lastIndex, bCs->firstPts,
-            bCs->lastPts, bCs->cSign->next);
     }
     sc->coarseend = &sc->coarsesiglist[numOfSegments-1];
 
@@ -159,7 +157,7 @@ binary_import(StreamContext *sc, const char* filename)
         skip_bits(&bitContext, 1);
 
         // MediaTimeOfFrame (PTS)
-        fs->pts = get_bits(&bitContext, 32);
+        fs->pts = get_bits_long(&bitContext, 32);
 
         // FrameConfidence
         fs->confidence = get_bits(&bitContext, 8);
@@ -196,9 +194,6 @@ binary_import(StreamContext *sc, const char* filename)
             fs->next = &fs[1];
             fs->prev = &fs[-1];
         }
-
-        slog_debug(6, "pts: %010llu\tconfidence: %03hhu\tnext: %10p"\
-            "\tprev: %10p", fs->pts, fs->confidence, fs->next, fs->prev);
     }
 
     // Fine signature ranges DO overlap
@@ -224,19 +219,14 @@ binary_import(StreamContext *sc, const char* filename)
                 } else {
                     bCs->cSign->last = fs;
                 }
-                slog_debug(6, "[%5d -> %5d - |%5d| - %5d <- %5d]",\
-                    bCs->firstPts, bCs->cSign->first->pts,\
-                    fs->pts, bCs->cSign->last->pts, bCs->lastPts);
             }
 
         }
+        bCs->cSign->first->index = bCs->firstIndex;
+        bCs->cSign->last->index = bCs->lastIndex;
     };
-    // Apparently there can be empty coarse signatures
-    if (sc->coarseend->last)
-        sc->coarseend->last->pts = lastCoarsePts;
-    if (sc->coarseend->first)
-        sc->coarseend->first->pts = 0;
 
+    printStreamContext(sc);
     free(bCoarseList);
     free(buffer);
 }

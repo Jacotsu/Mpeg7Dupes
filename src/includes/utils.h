@@ -85,4 +85,7 @@ getPathLastSlashPosition(const char *path);
 unsigned int
 buildDirectoryTree(const char *path);
 
+int
+xml_dump(StreamContext *sc);
+
 #endif

@@ -227,3 +227,102 @@ buildDirectoryTree(const char *path) {
         }
     return 1;
 }
+
+
+int
+xml_dump(StreamContext *sc)
+{
+    FILE* f;
+    unsigned int pot3[5] = { 3*3*3*3, 3*3*3, 3*3, 3, 1 };
+
+    // stdout
+    f = stdout;
+
+    /* header */
+    fprintf(f, "<?xml version='1.0' encoding='ASCII' ?>\n");
+    fprintf(f, "<Mpeg7 xmlns=\"urn:mpeg:mpeg7:schema:2001\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"urn:mpeg:mpeg7:schema:2001 schema/Mpeg7-2001.xsd\">\n");
+    fprintf(f, "  <DescriptionUnit xsi:type=\"DescriptorCollectionType\">\n");
+    fprintf(f, "    <Descriptor xsi:type=\"VideoSignatureType\">\n");
+    fprintf(f, "      <VideoSignatureRegion>\n");
+    fprintf(f, "        <VideoSignatureSpatialRegion>\n");
+    fprintf(f, "          <Pixel>0 0 </Pixel>\n");
+    fprintf(f, "          <Pixel>%d %d </Pixel>\n", sc->w - 1, sc->h - 1);
+    fprintf(f, "        </VideoSignatureSpatialRegion>\n");
+    fprintf(f, "        <StartFrameOfSpatialRegion>0</StartFrameOfSpatialRegion>\n");
+    /* hoping num is 1, other values are vague */
+    fprintf(f, "        <MediaTimeUnit>%d</MediaTimeUnit>\n", sc->time_base.den / sc->time_base.num);
+    fprintf(f, "        <MediaTimeOfSpatialRegion>\n");
+    fprintf(f, "          <StartMediaTimeOfSpatialRegion>0</StartMediaTimeOfSpatialRegion>\n");
+    fprintf(f, "          <EndMediaTimeOfSpatialRegion>%" PRIu64 "</EndMediaTimeOfSpatialRegion>\n", sc->coarseend->last->pts);
+    fprintf(f, "        </MediaTimeOfSpatialRegion>\n");
+
+    /* coarsesignatures */
+    for (CoarseSignature* cs = sc->coarsesiglist; cs; cs = cs->next) {
+        fprintf(f, "        <VSVideoSegment>\n");
+        fprintf(f, "          <StartFrameOfSegment>%" PRIu32 "</StartFrameOfSegment>\n", cs->first->index);
+        fprintf(f, "          <EndFrameOfSegment>%" PRIu32 "</EndFrameOfSegment>\n", cs->last->index);
+        fprintf(f, "          <MediaTimeOfSegment>\n");
+        fprintf(f, "            <StartMediaTimeOfSegment>%" PRIu64 "</StartMediaTimeOfSegment>\n", cs->first->pts);
+        fprintf(f, "            <EndMediaTimeOfSegment>%" PRIu64 "</EndMediaTimeOfSegment>\n", cs->last->pts);
+        fprintf(f, "          </MediaTimeOfSegment>\n");
+        for (int i = 0; i < 5; i++) {
+            fprintf(f, "          <BagOfWords>");
+            for (int j = 0; j < 31; j++) {
+                uint8_t n = cs->data[i][j];
+                if (j < 30) {
+                    fprintf(f, "%d  %d  %d  %d  %d  %d  %d  %d  ", (n & 0x80) >> 7,
+                                                                   (n & 0x40) >> 6,
+                                                                   (n & 0x20) >> 5,
+                                                                   (n & 0x10) >> 4,
+                                                                   (n & 0x08) >> 3,
+                                                                   (n & 0x04) >> 2,
+                                                                   (n & 0x02) >> 1,
+                                                                   (n & 0x01));
+                } else {
+                    /* print only 3 bit in last byte */
+                    fprintf(f, "%d  %d  %d ", (n & 0x80) >> 7,
+                                              (n & 0x40) >> 6,
+                                              (n & 0x20) >> 5);
+                }
+            }
+            fprintf(f, "</BagOfWords>\n");
+        }
+        fprintf(f, "        </VSVideoSegment>\n");
+    }
+
+    /* finesignatures */
+    for (FineSignature* fs = sc->finesiglist; fs; fs = fs->next) {
+        fprintf(f, "        <VideoFrame>\n");
+        fprintf(f, "          <MediaTimeOfFrame>%" PRIu64 "</MediaTimeOfFrame>\n", fs->pts);
+        /* confidence */
+        fprintf(f, "          <FrameConfidence>%d</FrameConfidence>\n", fs->confidence);
+        /* words */
+        fprintf(f, "          <Word>");
+        for (int i = 0; i < 5; i++) {
+            fprintf(f, "%d ", fs->words[i]);
+            if (i < 4) {
+                fprintf(f, " ");
+            }
+        }
+        fprintf(f, "</Word>\n");
+        /* framesignature */
+        fprintf(f, "          <FrameSignature>");
+        for (int i = 0; i< SIGELEM_SIZE/5; i++) {
+            if (i > 0) {
+                fprintf(f, " ");
+            }
+            fprintf(f, "%d ", fs->framesig[i] / pot3[0]);
+            for (int j = 1; j < 5; j++)
+                fprintf(f, " %d ", fs->framesig[i] % pot3[j-1] / pot3[j] );
+        }
+        fprintf(f, "</FrameSignature>\n");
+        fprintf(f, "        </VideoFrame>\n");
+    }
+    fprintf(f, "      </VideoSignatureRegion>\n");
+    fprintf(f, "    </Descriptor>\n");
+    fprintf(f, "  </DescriptionUnit>\n");
+    fprintf(f, "</Mpeg7>\n");
+    fflush(f);
+
+    return 0;
+}
