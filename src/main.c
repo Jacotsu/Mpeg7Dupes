@@ -95,7 +95,7 @@ processFiles(struct fileIndex *index, void (*printFunctionPointer)
         index->indexB = i;
 
 
-        //#pragma omp parallel for ordered schedule(dynamic) if(useOpenMp)
+        #pragma omp parallel for ordered schedule(dynamic) if(useOpenMp)
         for (int j = index->indexB + 1; j < index->maxIndexB; ++j) {
 
             // Used for session saving
