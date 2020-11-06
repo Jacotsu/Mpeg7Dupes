@@ -72,7 +72,6 @@ intersection_word(
 {
     unsigned int val=0;
     for (unsigned int i = 0; i < 28; i += 4) {
-
         val += av_popcount( (first[i]   & second[i]  ) << 24 |
                             (first[i+1] & second[i+1]) << 16 |
                             (first[i+2] & second[i+2]) << 8  |
@@ -102,7 +101,7 @@ union_word(
     return val;
 }
 
-__attribute__((optimize("unroll-loops"), optimize("fast-math")))
+__attribute__((optimize("unroll-loops")))
 static unsigned int
 get_l1dist(
 	SignatureContext *sc,
@@ -112,7 +111,7 @@ get_l1dist(
     unsigned int dist = 0;
 
     for (unsigned int i = 0; i < SIGELEM_SIZE/5; ++i) {
-        /* original code kept for clarity purpose
+        // original code kept for clarity purpose
         uint8_t f = first[i];
         uint8_t s = second[i];
         if (f != s) {
@@ -122,16 +121,7 @@ get_l1dist(
           else
               dist += sc->l1distlut[243*242/2 - (243-f)*(242-f)/2 + s - f - 1];
         }
-        */
-
-        // The branchless if trick works only with signed numbers
-        int f = first[i];
-        int s = second[i];
-        dist += \
-            (((s - f) >> 31)&sc->l1distlut[((483 - s) / 2)*s - 1 + f]) |\
-            (((f - s) >> 31)&sc->l1distlut[((483 - f) / 2)*f - 1 + s]);
     }
-
 
     return dist;
 }
@@ -152,7 +142,6 @@ get_jaccarddist(
             second->data[i]);
 
         if (jaccarddist > 0) {
-
             jaccarddist /= union_word(first->data[i], second->data[i]);
         }
         if (jaccarddist >= sc->thworddist) {
@@ -210,7 +199,6 @@ find_next_coarsecandidate(
 }
 
 /* hough transformation */
-__attribute__((optimize("unroll-loops"), optimize("fast-math")))
 size_t
 houghTransform(struct pairs *pairs, hspace_elem hspace[]\
         [2*HOUGH_MAX_OFFSET + 1]) {
@@ -229,27 +217,25 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[]\
         struct pairs pairI = pairs[i];
 
         for (unsigned int k = i + 1; k < COARSE_SIZE; k++) {
+            struct pairs pairK = pairs[k];
 
             for (unsigned int j = 0; j < pairI.size; j++) {
-                struct pairs pairK = pairs[k];
 
                 for (unsigned int l = 0; l < pairK.size; l++) {
                     if (pairI.b[j] != pairK.b[l]) {
 
                         // linear regression
                         // good value between 0.0 - 2.0
-                        m = ((float) (pairs[k].b_pos[l]-pairs[i].b_pos[j]) )/ \
+                        m = ((float) (pairK.b_pos[l]-pairI.b_pos[j]) )/ \
                             (k-i);
                         // round up to 0 - 60
-                        framerate = nearbyint( m*30 + 0.5);;
+                        framerate = nearbyint( m*30 + 0.5);
                         if (framerate>0 && framerate <= MAX_FRAMERATE) {
                             // only second part has to be rounded up
-                            offset = pairs[i].b_pos[j] - \
-                                     nearbyint(m*i + 0.5);
+                            offset = pairI.b_pos[j] - nearbyint(m*i + 0.5);
 
                             if (offset > -HOUGH_MAX_OFFSET && offset < HOUGH_MAX_OFFSET) {
                                 hspace_elem *hElem = &hspace[framerate-1][offset+HOUGH_MAX_OFFSET];
-
                                 if (pairI.dist < pairK.dist) {
                                     if (pairI.dist < hElem->dist) {
                                         hElem->dist = pairI.dist;
@@ -281,7 +267,6 @@ houghTransform(struct pairs *pairs, hspace_elem hspace[]\
  * compares framesignatures and sorts out signatures with a l1 distance above a given threshold.
  * Then tries to find out offset and differences between framerates with a hough transformation
  */
-__attribute__((optimize("unroll-loops")))
 static MatchingInfo*
 get_matching_parameters(
 	SignatureContext *sc,
@@ -294,14 +279,14 @@ get_matching_parameters(
     //int l1dist;
 
     size_t hmax = 0;
-    int l1dist;
+    unsigned int l1dist = 999999999;
 
     MatchingInfo *cands = NULL, *c = NULL;
     struct pairs pairs[COARSE_SIZE] = { [0 ... COARSE_SIZE-1] = \
         {.size = 0, .dist = 999999999, .a = NULL, .b_pos = {0}, .b = {NULL} }};
 
 
-    /* initialize houghspace */
+    // initialize houghspace
     // Removed malloc/calloc to avoid useless memory allocation
     // when plenty of space is avaiable in the stack
     // designated initializer notation, removes initialization loops
@@ -314,22 +299,22 @@ get_matching_parameters(
                 .b = NULL} }
     };
 
-    /* l1 distances */
+    // l1 distances
     f = first;
     for (unsigned int i = 0; i < COARSE_SIZE && f->next; i++, f = f->next) {
         pairs[i].a = f;
         FineSignature *s = second;
         for (unsigned int j = 0; j < COARSE_SIZE && s->next;\
             j++, s = s->next) {
-            /* l1 distance of finesignature */
-            l1dist = get_l1dist(sc, f->framesig, s->framesig);
-            if (l1dist < sc->thl1) {
-                if ((unsigned int) l1dist < pairs[i].dist) {
+            // l1 distance of finesignature
+            l1dist = (unsigned int) get_l1dist(sc, f->framesig, s->framesig);
+            if (l1dist < (unsigned int) sc->thl1) {
+                if (l1dist < pairs[i].dist) {
                     pairs[i].size = 1;
                     pairs[i].dist = l1dist;
                     pairs[i].b_pos[0] = j;
                     pairs[i].b[0] = s;
-                } else if ((unsigned int) l1dist == pairs[i].dist) {
+                } else if (l1dist == pairs[i].dist) {
                     pairs[i].b[pairs[i].size] = s;
                     pairs[i].b_pos[pairs[i].size] = j;
                     pairs[i].size++;
@@ -341,7 +326,7 @@ get_matching_parameters(
     hmax = houghTransform(pairs, hspace);
 
     if (hmax > 0) {
-        hmax = round(0.7*hmax);
+        hmax = floor(0.7*hmax);
         for (unsigned int i = 0; i < MAX_FRAMERATE; i++) {
             for (unsigned int j = 0; j < HOUGH_MAX_OFFSET; j++) {
                 if (hmax < hspace[i][j].score) {
@@ -362,7 +347,7 @@ get_matching_parameters(
                     c->second = hspace[i][j].b;
                     c->next = NULL;
 
-                    /* not used */
+                    // not used
                     c->meandist = 0;
                     c->matchframes = 0;
                     c->whole = 0;
@@ -493,12 +478,12 @@ evaluate_parameters(
     int fcount = 0, goodfcount = 0, gooda = 0, goodb = 0;
     double meandist, minmeandist = bestmatch.meandist;
     int tolerancecount = 0;
-    FineSignature *a = NULL, *b = NULL, *aprev = NULL, *bprev = NULL;
+    FineSignature *aprev = NULL, *bprev = NULL;
     int status = STATUS_NULL;
 
     for (; infos != NULL; infos = infos->next) {
-        a = infos->first;
-        b = infos->second;
+        FineSignature *a = infos->first;
+        FineSignature *b = infos->second;
         while (1) {
             dist = get_l1dist(sc, a->framesig, b->framesig);
 
@@ -627,31 +612,28 @@ lookup_signatures(
         return bestmatch; /* no candidate found */
 
     do {
-        // No empty coarse signatures allowed
-        if (cs->first && cs2->first) {
-            slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
-                "frame: %" PRIu32 " and %" PRIu32,
-                cs->first->index, cs2->first->index);
+        slog_debug(6, "Stage 1: got coarsesignature pair. indices of first "\
+            "frame: %" PRIu32 " and %" PRIu32,
+            cs->first->index, cs2->first->index);
 
-            // stage 2: l1-distance and hough-transform
-            infos = get_matching_parameters(sc, cs->first, cs2->first);
+        // stage 2: l1-distance and hough-transform
+        infos = get_matching_parameters(sc, cs->first, cs2->first);
 
-            for (MatchingInfo *i = infos; i != NULL; i = i->next) {
-                slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
-                    PRIu32 ", ratio %f, offset %d", i->first->index, \
-                    i->second->index, i->framerateratio, i->offset);
-            }
-            // stage 3: evaluation
-            if (infos) {
-                bestmatch = evaluate_parameters(sc, infos, bestmatch);
-                if (bestmatch.first && bestmatch.second)
-                    slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
-                        PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",
-                        bestmatch.first->index, bestmatch.second->index,\
-                        bestmatch.framerateratio, bestmatch.offset, bestmatch.score, \
-                        bestmatch.matchframes);
-                sll_free(infos);
-            }
+        for (MatchingInfo *i = infos; i != NULL; i = i->next) {
+            slog_debug(6, "Stage 2: matching pair at %" PRIu32 " and %" \
+                PRIu32 ", ratio %f, offset %d", i->first->index, \
+                i->second->index, i->framerateratio, i->offset);
+        }
+        // stage 3: evaluation
+        if (infos) {
+            bestmatch = evaluate_parameters(sc, infos, bestmatch);
+            if (bestmatch.first && bestmatch.second)
+                slog_debug(6, "Stage 3: best matching pair at %" PRIu32 " and %" \
+                    PRIu32 ", ratio %f, offset %d, score %d, %d frames matching",
+                    bestmatch.first->index, bestmatch.second->index,\
+                    bestmatch.framerateratio, bestmatch.offset, bestmatch.score, \
+                    bestmatch.matchframes);
+            sll_free(infos);
         }
     } while (find_next_coarsecandidate(sc, second->coarsesiglist,\
                 &cs, &cs2, 0) && !bestmatch.whole);
